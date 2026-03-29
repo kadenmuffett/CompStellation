@@ -224,17 +224,17 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     } else {
       groups <- as.character(unique(df_grouped_2[[sample_var]]))
     }
-    
+
     if (!missing(colors_all) && colors_all == "hclust") {
       # Order colors by hierarchical clustering automatically
       long_df <- df_grouped_2 %>%
         dplyr::select(!!sym(sample_var), Taxa_Group, mean_Abundance) %>%
         tidyr::pivot_wider(names_from = Taxa_Group, values_from = mean_Abundance, values_fill = list(mean_Abundance = 0))
-        
+
       dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
       hc_res <- stats::hclust(dist_m, method = "complete")
       ordered_names <- long_df[[sample_var]][hc_res$order]
-      
+
       base_paling <- grDevices::hcl.colors(length(groups), palette = "Viridis")
       colors_all <- stats::setNames(base_paling, ordered_names)
     } else {
@@ -256,9 +256,9 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     geom_polygon(aes(), linewidth = 0.8, show.legend = FALSE, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +
     scale_color_manual(values = colors_all) +
-    theme_minimal(base_family = "IBM Plex Sans") +
+    theme_minimal() +
     theme(
-      axis.text.x = element_text(color = "black", size = 10),
+      text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
       axis.text.y = element_text(color = "gray50"),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
       plot.margin = margin(15, 15, 15, 15)

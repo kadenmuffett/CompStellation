@@ -24,6 +24,7 @@ gp <- subset_taxa(gp, taxa_sums(gp) > 0)
 taxa_plot <- plot_taxa_star(
     physeq = gp,
     sample_var = "SampleType",
+    colors_all = "hclust",
     taxa_rank = "Order",
     samplecolumn = "X.SampleID",
     error_bar = "SE",
