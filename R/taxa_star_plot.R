@@ -16,7 +16,7 @@
 #' @param samplecolumn This is the ID column for your samples.
 #' @param view_type A character string, either "separate" (default) or "together".
 #'   Determines whether groups are plotted on the same plot or faceted.
-#' @param fill_alpha A numeric value between 0 and 1 (default 0.4).
+#' @param fill_alpha A numeric value between 0 and 1 (default 0.2).
 #'   Controls the transparency of the polygon fill under the star plot.
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
 #' @param plot_order A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.
@@ -52,7 +52,7 @@
 #' #   ...
 #' #   error_bar = "none"
 #' # )
-plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.4, log_scale = FALSE, plot_order = NULL) {
+plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL) {
   # --- 1. Input Validation and Conversion ---
 
   # Check if input is a data frame and convert to phyloseq if necessary
@@ -218,13 +218,28 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   # --- 4. Plotting ---
 
   # Handle default colors if missing
-  if (missing(colors_all)) {
+  if (missing(colors_all) || (length(colors_all) == 1 && colors_all == "hclust")) {
     if (is.factor(df_grouped_2[[sample_var]])) {
       groups <- levels(df_grouped_2[[sample_var]])
     } else {
       groups <- as.character(unique(df_grouped_2[[sample_var]]))
     }
-    colors_all <- get_default_colors(groups)
+    
+    if (!missing(colors_all) && colors_all == "hclust") {
+      # Order colors by hierarchical clustering automatically
+      long_df <- df_grouped_2 %>%
+        dplyr::select(!!sym(sample_var), Taxa_Group, mean_Abundance) %>%
+        tidyr::pivot_wider(names_from = Taxa_Group, values_from = mean_Abundance, values_fill = list(mean_Abundance = 0))
+        
+      dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+      hc_res <- stats::hclust(dist_m, method = "complete")
+      ordered_names <- long_df[[sample_var]][hc_res$order]
+      
+      base_paling <- grDevices::hcl.colors(length(groups), palette = "Viridis")
+      colors_all <- stats::setNames(base_paling, ordered_names)
+    } else {
+      colors_all <- get_default_colors(groups)
+    }
   }
 
   title_suffix <- switch(error_bar,
@@ -238,17 +253,23 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     x = Taxa_Group, y = mean_Abundance, group = !!sym(sample_var),
     fill = !!sym(sample_var), color = !!sym(sample_var)
   )) +
-    geom_polygon(aes(), size = 1, show.legend = FALSE, alpha = fill_alpha) +
+    geom_polygon(aes(), linewidth = 0.8, show.legend = FALSE, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +
     scale_color_manual(values = colors_all) +
-    theme_minimal() +
+    theme_minimal(base_family = "IBM Plex Sans") +
+    theme(
+      axis.text.x = element_text(color = "black", size = 10),
+      axis.text.y = element_text(color = "gray50"),
+      panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
+      plot.margin = margin(15, 15, 15, 15)
+    ) +
     labs(
       title = paste0("Relative Abundance of Key Taxa", title_suffix),
       x = "",
       y = "Relative Abundance",
       color = "Sample"
     ) +
-    coord_radar()
+    coord_radar(clip = "off")
 
   if (view_type == "separate") {
     star_plot <- star_plot + facet_wrap(as.formula(paste("~", sample_var)))
@@ -264,7 +285,9 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   }
 
   if (log_scale) {
-    star_plot <- star_plot + scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.01))
+    star_plot <- star_plot + scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.01), breaks = scales::breaks_pretty(n = 3))
+  } else {
+    star_plot <- star_plot + scale_y_continuous(breaks = scales::breaks_pretty(n = 3))
   }
 
   return(star_plot)

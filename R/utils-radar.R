@@ -5,14 +5,14 @@
 #' @param direction 1, clockwise; -1, anticlockwise.
 #' 
 #' @keywords internal
-coord_radar <- function (theta = "x", start = 0, direction = 1)
+coord_radar <- function (theta = "x", start = 0, direction = 1, clip = "off")
 {
   theta <- match.arg(theta, c("x", "y"))
   r <- if (theta == "x")
     "y"
   else "x"
   ggproto("CoordRadar", CoordPolar, theta = theta, r = r, start = start,
-          direction = sign(direction),
+          direction = sign(direction), clip = clip,
           is_linear = function(coord) TRUE)
 }
 

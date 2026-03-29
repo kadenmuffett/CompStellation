@@ -10,7 +10,7 @@
 #'   Determines whether groups are plotted on the same plot or faceted.
 #' @param error_bar A character string, one of "IQR" (default), "SE", or "none".
 #'   Determines the type of error bars to display.
-#' @param fill_alpha A numeric value between 0 and 1 (default 0.4).
+#' @param fill_alpha A numeric value between 0 and 1 (default 0.2).
 #'   Controls the transparency of the polygon fill under the star plot.
 #' @param distance An accepted phyloseq ordination type ("bray" for example). Required if `ord` is NULL.
 #' @param ord An optional existing ordination object (e.g., from \code{phyloseq::ordinate()}). If provided, ordination is skipped.
@@ -39,7 +39,7 @@
 #' #     distance = "bray"
 #' #    )
 #' #
-plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together", error_bar = "IQR", fill_alpha = 0.4, distance = NULL, ord = NULL, plot_order = NULL) {
+plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = NULL, ord = NULL, plot_order = NULL) {
   # --- 1. Input Validation ---
   if (!inherits(physeq, "phyloseq")) {
     stop("Error: 'physeq' must be a VALID phyloseq object.")
@@ -162,13 +162,27 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
   # --- 4. Plotting ---
 
   # Handle default colors if missing
-  if (missing(colors_all)) {
+  if (missing(colors_all) || (length(colors_all) == 1 && colors_all == "hclust")) {
     if (is.factor(pcoa_stats[[sample_var]])) {
       groups <- levels(pcoa_stats[[sample_var]])
     } else {
       groups <- as.character(unique(pcoa_stats[[sample_var]]))
     }
-    colors_all <- get_default_colors(groups)
+    
+    if (!missing(colors_all) && colors_all == "hclust") {
+      long_df <- pcoa_stats %>%
+        dplyr::select(!!sym(sample_var), Axis, Mean_Position) %>%
+        tidyr::pivot_wider(names_from = Axis, values_from = Mean_Position, values_fill = list(Mean_Position = 0))
+        
+      dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+      hc_res <- stats::hclust(dist_m, method = "complete")
+      ordered_names <- long_df[[sample_var]][hc_res$order]
+      
+      base_paling <- grDevices::hcl.colors(length(groups), palette = "Viridis")
+      colors_all <- stats::setNames(base_paling, ordered_names)
+    } else {
+      colors_all <- get_default_colors(groups)
+    }
   }
 
   title_suffix <- switch(error_bar,
@@ -181,12 +195,18 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
     x = Axis, y = Mean_Position, group = !!sym(sample_var),
     color = !!sym(sample_var), fill = !!sym(sample_var)
   )) +
-    geom_polygon(aes(), size = 1, alpha = fill_alpha) +
+    geom_polygon(aes(), linewidth = 0.8, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +
     scale_color_manual(values = colors_all) +
     # Adjust Y-axis labels to show original values
-    scale_y_continuous(labels = function(x) sprintf("%.2f", x - y_offset)) +
-    theme_minimal() +
+    scale_y_continuous(labels = function(x) sprintf("%.2f", x - y_offset), breaks = scales::breaks_pretty(n = 3)) +
+    theme_minimal(base_family = "IBM Plex Sans") +
+    theme(
+      axis.text.x = element_text(color = "black", size = 10),
+      axis.text.y = element_text(color = "gray50"),
+      panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
+      plot.margin = margin(15, 15, 15, 15)
+    ) +
     labs(
       title = paste0("Mean PCoA Position (First 5 Axes)", title_suffix),
       x = "",
@@ -194,7 +214,7 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
       color = sample_var,
       fill = sample_var
     ) +
-    coord_radar() # Uses the function from utils-radar.R
+    coord_radar(clip = "off") # Uses the function from utils-radar.R
 
   # Add Error Bars conditionally
   if (error_bar == "IQR") {
