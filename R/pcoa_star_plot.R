@@ -204,7 +204,7 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
       text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
       axis.text.y = element_text(color = "gray50"),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
-      plot.margin = margin(15, 15, 15, 15)
+      plot.margin = margin(20, 20, 20, 20)
     ) +
     labs(
       title = paste0("Mean PCoA Position (First 5 Axes)", title_suffix),
