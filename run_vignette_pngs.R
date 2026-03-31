@@ -50,6 +50,14 @@ pcoa_plot_tog <- plot_pcoa_star(
 )
 ggsave(file.path(out_dir, "pcoa_star_tog.png"), pcoa_plot_tog, width = 8, height = 6, dpi = 300)
 
+# --- pcoa_star_iris_plot test ---
+pcoa_iris_plot <- plot_pcoa_star_iris(
+    physeq = gp,
+    sample_var = "SampleType",
+    distance = "bray",
+    view_type = "separate"
+)
+ggsave(file.path(out_dir, "pcoa_star_iris.png"), pcoa_iris_plot, width = 10, height = 6, dpi = 300)
 
 message("GlobalPatterns tests complete! Constructing dummy dataset for core tests...")
 

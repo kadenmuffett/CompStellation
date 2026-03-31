@@ -14,7 +14,8 @@ Imports:
     microViz,
     phyloseq,
     reshape2,
-    patchwork
+    patchwork,
+    ggnewscale
 Suggests: 
     knitr,
     rmarkdown
