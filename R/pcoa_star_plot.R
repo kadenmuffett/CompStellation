@@ -198,13 +198,13 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
     scale_fill_manual(values = colors_all) +
     scale_color_manual(values = colors_all) +
     # Adjust Y-axis labels to show original values
-    scale_y_continuous(labels = function(x) sprintf("%.2f", x - y_offset), breaks = scales::breaks_pretty(n = 3)) +
+    scale_y_continuous(labels = function(x) sprintf("%.2f", x - y_offset), breaks = scales::breaks_pretty(n = 5)) +
     theme_minimal() +
     theme(
       text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
       axis.text.y = element_text(color = "gray50"),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
-      plot.margin = margin(20, 20, 20, 20)
+      plot.margin = margin(25, 25, 25, 25)
     ) +
     labs(
       title = paste0("Mean PCoA Position (First 5 Axes)", title_suffix),
