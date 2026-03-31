@@ -178,8 +178,7 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
       hc_res <- stats::hclust(dist_m, method = "complete")
       ordered_names <- long_df[[sample_var]][hc_res$order]
 
-      base_paling <- grDevices::hcl.colors(length(groups), palette = "Viridis")
-      colors_all <- stats::setNames(base_paling, ordered_names)
+      colors_all <- get_hclust_colors(hc_res, ordered_names)
     } else {
       colors_all <- get_default_colors(groups)
     }
