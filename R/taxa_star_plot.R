@@ -233,7 +233,8 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
       dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
       hc_res <- stats::hclust(dist_m, method = "complete")
-      ordered_names <- long_df[[sample_var]][hc_res$order]
+      hc_res$labels <- as.character(long_df[[sample_var]])
+      ordered_names <- hc_res$labels[hc_res$order]
 
       colors_all <- get_hclust_colors(hc_res, ordered_names)
     } else {
