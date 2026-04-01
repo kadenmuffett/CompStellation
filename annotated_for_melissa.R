@@ -71,7 +71,7 @@ plot_ord_comar<-plot_ordination(antgen,ord,color = "geographic_location")+geom_p
 plot_richness(antgen)
 
 #extra nugget, use kaden's pcoa plot
-anything<-plot_pcoa_star(
+anything<-plot_ordi_star(
   physeq = antgen,
   sample_var = "geographic_location",
   distance = "bray",

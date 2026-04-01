@@ -32,8 +32,8 @@ taxa_plot <- plot_taxa_star(
 )
 ggsave(file.path(out_dir, "taxa_star.png"), taxa_plot, width = 8, height = 6, dpi = 300)
 
-# --- pcoa_star_plot (separate) test ---
-pcoa_plot_sep <- plot_pcoa_star(
+# --- plot_ordi_star (separate) test ---
+pcoa_plot_sep <- plot_ordi_star(
     physeq = gp,
     sample_var = "SampleType",
     distance = "bray",
@@ -41,8 +41,8 @@ pcoa_plot_sep <- plot_pcoa_star(
 )
 ggsave(file.path(out_dir, "pcoa_star_sep.png"), pcoa_plot_sep, width = 10, height = 6, dpi = 300)
 
-# --- pcoa_star_plot (together) test ---
-pcoa_plot_tog <- plot_pcoa_star(
+# --- plot_ordi_star (together) test ---
+pcoa_plot_tog <- plot_ordi_star(
     physeq = gp,
     sample_var = "SampleType",
     distance = "bray",
@@ -50,8 +50,8 @@ pcoa_plot_tog <- plot_pcoa_star(
 )
 ggsave(file.path(out_dir, "pcoa_star_tog.png"), pcoa_plot_tog, width = 8, height = 6, dpi = 300)
 
-# --- pcoa_star_iris_plot test ---
-pcoa_iris_plot <- plot_pcoa_star_iris(
+# --- plot_ordi_star_iris test ---
+pcoa_iris_plot <- plot_ordi_star_iris(
     physeq = gp,
     sample_var = "SampleType",
     distance = "bray",

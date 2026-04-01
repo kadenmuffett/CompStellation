@@ -29,7 +29,7 @@
 #'
 #' @examples
 #' # ...
-#' #   plot_pcoa_star(
+#' #   plot_ordi_star(
 #' #     physeq = gp_subset,
 #' #     sample_var = "SampleType",
 #' #     colors_all = c(...),
@@ -39,7 +39,7 @@
 #' #     distance = "bray"
 #' #    )
 #' #
-plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = NULL, ord = NULL, plot_order = NULL) {
+plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = NULL, ord = NULL, plot_order = NULL, n_axes = 5) {
   # --- 1. Input Validation ---
   if (!inherits(physeq, "phyloseq")) {
     stop("Error: 'physeq' must be a VALID phyloseq object.")
@@ -51,41 +51,58 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
   view_type <- match.arg(view_type, c("together", "separate"))
   error_bar <- match.arg(error_bar, c("IQR", "SE", "none"))
 
-  # --- 2. Ordination (Bray-Curtis PCoA) ---
-  if (is.null(ord)) {
-    if (is.null(distance)) {
-      stop("Error: 'distance' must be provided if 'ord' is NULL.")
-    }
-    message("This package will ordinate samples with 0 total
-          reads/counts. Make sure you have removed all
-          non-meaningful zeros and your data is
-          appropriately transformed before starting.
-          Calculating dissimilarity and performing PCoA...")
+  # --- 2. Ordination ---
+  method <- match.arg(method, c("PCoA", "NMDS", "PCA"))
 
-    # Calculate distance and ordinate
-    # Note: phyloseq::ordinate can handle distance calculation internally but explicit is often clearer
-    ord <- phyloseq::ordinate(physeq, method = "PCoA", distance = paste0(sym(distance)))
+  if (is.null(ord)) {
+    if (is.null(distance) && method != "PCA") {
+      stop("Error: 'distance' must be provided for ", method, " if 'ord' is NULL.")
+    }
+    
+    message("Calculating dissimilarity and performing ", method, "...")
+    if (method == "PCA") {
+      ord <- phyloseq::ordinate(physeq, method = "PCA")
+    } else {
+      ord <- phyloseq::ordinate(physeq, method = method, distance = distance)
+    }
   } else {
     message("Using provided ordination object...")
   }
 
-  # Extract the first 5 axes
-  # The points (site scores) are in ord$vectors
-  if (ncol(ord$vectors) < 5) {
-    warning("PCoA resulted in fewer than 5 axes. Plotting available axes.")
-    n_axes <- ncol(ord$vectors)
+  # Generic extraction logic
+  if (inherits(ord, c("pcoa", "dpcoa", "list")) && !is.null(ord$vectors)) {
+    vecs <- ord$vectors
+    eigen_vals <- ord$values$Eigenvalues
+    if(!is.null(eigen_vals)) percent_var <- 100 * (eigen_vals / sum(eigen_vals)) else percent_var <- NULL
+    axis_raw_names <- paste0("Axis ", 1:ncol(vecs))
+  } else if (inherits(ord, c("metaMDS", "monoMDS"))) {
+    vecs <- ord$points
+    percent_var <- NULL
+    axis_raw_names <- paste0("NMDS", 1:ncol(vecs))
+  } else if (inherits(ord, c("rda", "cca", "prcomp"))) {
+    vecs <- vegan::scores(ord, display = "sites")
+    eigen_vals <- ord$CA$eig
+    if(!is.null(eigen_vals)) percent_var <- 100 * (eigen_vals / sum(eigen_vals)) else percent_var <- NULL
+    axis_raw_names <- paste0("PC", 1:ncol(vecs))
   } else {
-    n_axes <- 5
+    vecs <- tryCatch(vegan::scores(ord, display = "sites"), error = function(e) ord$vectors)
+    percent_var <- NULL
+    axis_raw_names <- paste0("Axis ", 1:ncol(vecs))
   }
 
-  # Calculate Percent Variation Explained
-  eigen_vals <- ord$values$Eigenvalues
-  percent_var <- 100 * (eigen_vals / sum(eigen_vals))
+  actual_axes <- min(n_axes, ncol(vecs))
+  if (actual_axes < n_axes) {
+    warning(method, " resulted in fewer than ", n_axes, " axes. Plotting ", actual_axes, " available axes.")
+  }
+  n_axes <- actual_axes
 
-  # create labels for the first n_axes
-  axis_labels <- paste0("Axis ", 1:n_axes, "\n(", sprintf("%.1f", percent_var[1:n_axes]), "%)")
+  if (!is.null(percent_var)) {
+    axis_labels <- paste0(axis_raw_names[1:n_axes], "\n(", sprintf("%.1f", percent_var[1:n_axes]), "%)")
+  } else {
+    axis_labels <- axis_raw_names[1:n_axes]
+  }
 
-  pcoa_axes <- data.frame(ord$vectors[, 1:n_axes])
+  pcoa_axes <- data.frame(vecs[, 1:n_axes, drop = FALSE])
   colnames(pcoa_axes) <- axis_labels # Use the new labels as column names immediately
 
   # Add sample data
@@ -204,10 +221,10 @@ plot_pcoa_star <- function(physeq, sample_var, colors_all, view_type = "together
       text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
       axis.text.y = element_text(color = "gray50"),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
-      plot.margin = margin(25, 25, 25, 25)
+      plot.margin = margin(15, 15, 15, 15)
     ) +
     labs(
-      title = paste0("Mean PCoA Position (First 5 Axes)", title_suffix),
+      title = paste0("Mean ", method, " Position (First ", n_axes, " Axes)", title_suffix),
       x = "",
       y = "Mean Score",
       color = sample_var,

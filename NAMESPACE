@@ -2,10 +2,10 @@
 
 export(coreselect)
 export(plot_core_matrix)
-export(plot_pcoa_star)
+export(plot_ordi_star)
 export(plot_taxa_star)
 export(plot_concordant_core)
-export(plot_pcoa_star_iris)
+export(plot_ordi_star_iris)
 import(dplyr)
 import(ggplot2)
 import(patchwork)

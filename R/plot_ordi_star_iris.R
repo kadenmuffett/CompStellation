@@ -29,11 +29,11 @@
 #' @import vegan
 #' @importFrom stats as.formula sd quantile
 #' @export
-plot_pcoa_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa = 5,
+plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa = 5,
                                 colors_star = NULL, colors_taxa = NULL,
-                                view_type = "separate", error_bar = "IQR",
+                                method = "PCoA", view_type = "separate", error_bar = "IQR",
                                 fill_alpha = 0.2, distance = NULL, ord = NULL,
-                                plot_order = NULL) {
+                                plot_order = NULL, n_axes = 5) {
 
   # --- 1. Input Validation ---
   if (!inherits(physeq, "phyloseq")) {
@@ -51,20 +51,52 @@ plot_pcoa_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   error_bar <- match.arg(error_bar, c("IQR", "SE", "none"))
 
   # --- 2. PCoA Calculation ---
+  method <- match.arg(method, c("PCoA", "NMDS", "PCA"))
+  
   if (is.null(ord)) {
-    if (is.null(distance)) stop("Error: 'distance' must be provided if 'ord' is NULL.")
-    message("Calculating dissimilarity and performing PCoA for the central star...")
-    ord <- phyloseq::ordinate(physeq, method = "PCoA", distance = paste0(dplyr::sym(distance)))
+    if (is.null(distance) && method != "PCA") stop("Error: 'distance' must be provided for ", method, " if 'ord' is NULL.")
+    message("Calculating dissimilarity and performing ", method, " for the central star...")
+    if (method == "PCA") {
+      ord <- phyloseq::ordinate(physeq, method = "PCA")
+    } else {
+      ord <- phyloseq::ordinate(physeq, method = method, distance = distance)
+    }
   }
 
-  n_axes <- min(5, ncol(ord$vectors))
-  if (n_axes < 5) warning("PCoA resulted in fewer than 5 axes.")
+  # Generic extraction logic
+  if (inherits(ord, c("pcoa", "dpcoa", "list")) && !is.null(ord$vectors)) {
+    vecs <- ord$vectors
+    eigen_vals <- ord$values$Eigenvalues
+    if(!is.null(eigen_vals)) percent_var <- 100 * (eigen_vals / sum(eigen_vals)) else percent_var <- NULL
+    axis_raw_names <- paste0("Axis ", 1:ncol(vecs))
+  } else if (inherits(ord, c("metaMDS", "monoMDS"))) {
+    vecs <- ord$points
+    percent_var <- NULL
+    axis_raw_names <- paste0("NMDS", 1:ncol(vecs))
+  } else if (inherits(ord, c("rda", "cca", "prcomp"))) {
+    vecs <- vegan::scores(ord, display = "sites")
+    eigen_vals <- ord$CA$eig
+    if(!is.null(eigen_vals)) percent_var <- 100 * (eigen_vals / sum(eigen_vals)) else percent_var <- NULL
+    axis_raw_names <- paste0("PC", 1:ncol(vecs))
+  } else {
+    vecs <- tryCatch(vegan::scores(ord, display = "sites"), error = function(e) ord$vectors)
+    percent_var <- NULL
+    axis_raw_names <- paste0("Axis ", 1:ncol(vecs))
+  }
 
-  eigen_vals <- ord$values$Eigenvalues
-  percent_var <- 100 * (eigen_vals / sum(eigen_vals))
-  axis_labels <- paste0("Axis ", 1:n_axes, "\n(", sprintf("%.1f", percent_var[1:n_axes]), "%)")
+  actual_axes <- min(n_axes, ncol(vecs))
+  if (actual_axes < n_axes) {
+    warning(method, " resulted in fewer than ", n_axes, " axes.")
+  }
+  n_axes <- actual_axes
 
-  pcoa_axes <- data.frame(ord$vectors[, 1:n_axes])
+  if (!is.null(percent_var)) {
+    axis_labels <- paste0(axis_raw_names[1:n_axes], "\n(", sprintf("%.1f", percent_var[1:n_axes]), "%)")
+  } else {
+    axis_labels <- axis_raw_names[1:n_axes]
+  }
+
+  pcoa_axes <- data.frame(vecs[, 1:n_axes, drop = FALSE])
   colnames(pcoa_axes) <- axis_labels
   sample_dat <- data.frame(phyloseq::sample_data(physeq))
   pcoa_df <- cbind(pcoa_axes, sample_dat)
@@ -210,8 +242,8 @@ plot_pcoa_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   # Set scales for Layer 1
   p <- p +
-    ggplot2::scale_fill_manual(values = colors_star, name = paste("PCoA Star\n", sample_var)) +
-    ggplot2::scale_color_manual(values = colors_star, name = paste("PCoA Star\n", sample_var)) +
+    ggplot2::scale_fill_manual(values = colors_star, name = paste(method, "Star\n", sample_var)) +
+    ggplot2::scale_color_manual(values = colors_star, name = paste(method, "Star\n", sample_var)) +
     
     # NEW FILL SCALE for the Outer Ring 
     ggnewscale::new_scale_fill() +
@@ -233,7 +265,7 @@ plot_pcoa_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
       plot.margin = ggplot2::margin(15, 15, 15, 15)
     ) +
     ggplot2::labs(
-      title = paste0("Mean PCoA Position", title_suffix, " & Taxa Iris"),
+      title = paste0("Mean ", method, " Position", title_suffix, " & Taxa Iris"),
       x = "",
       y = "Mean Score / Taxonomy"
     )

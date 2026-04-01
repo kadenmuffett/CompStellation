@@ -10,7 +10,7 @@ library(patchwork)
 source("R/utils-radar.R")
 source("R/utils-colors.R")
 source("R/taxa_star_plot.R")
-source("R/pcoa_star_plot.R") # Not needed but good practice
+source("R/plot_ordi_star.R") # Not needed but good practice
 source("R/core_matrix_plot.R")
 
 # 1. Create Mock Data
