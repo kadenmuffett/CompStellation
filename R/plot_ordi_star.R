@@ -52,7 +52,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   error_bar <- match.arg(error_bar, c("IQR", "SE", "none"))
 
   # --- 2. Ordination ---
-  method <- match.arg(method, c("PCoA", "NMDS", "PCA"))
+  method <- match.arg(method, c("DCA", "CCA", "RDA", "CAP", "DPCoA", "NMDS", "MDS", "PCoA"))
 
   if (is.null(ord)) {
     if (is.null(distance) && method != "PCA") {
