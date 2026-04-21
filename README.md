@@ -1,9 +1,9 @@
-# microbiomestar
+# CompStellation
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The `microbiomestar` package provides unique visualization techniques for microbiome data using `phyloseq` and `microViz`. Its flagship features involve replacing standard points or bars with "star" (radar) plots that show the relative abundance of core taxa or any taxa of interest. These multi-dimensional shapes can be projected onto PCoA plots or arranged in core matrices to easily visualize differences in community structures across samples or treatments (up to 4 groups/treatments for comparative core matrices).
+The `CompStellation` package provides unique visualization techniques for microbiome data using `phyloseq` and `microViz`. Its flagship features involve replacing standard points or bars with "star" (radar) plots that show the relative abundance of core taxa or any taxa of interest. These multi-dimensional shapes can be projected onto PCoA plots or arranged in core matrices to easily visualize differences in community structures across samples or treatments (up to 4 groups/treatments for comparative core matrices).
 
 <img width="1315" height="747" alt="image" src="https://github.com/user-attachments/assets/89dd71a7-bb12-43b5-979c-83a2a9a43128" />
 *PCoA axes plotted using data from the GlobalPatterns dataset (plot_pcoa_star())*
@@ -11,9 +11,9 @@ The `microbiomestar` package provides unique visualization techniques for microb
 
 ## Installation
 
-You can install the development version of `microbiomestar` from GitHub with:
+You can install the development version of `CompStellation` from GitHub with:
 ``` r
-BiocManager::install("kadenmuffett/microbiomestarplots")
+BiocManager::install("kadenmuffett/CompStellation")
 ```
 
 ## Features
@@ -33,14 +33,14 @@ Provides a presence/absence comparison tool for assessing the core microbiome th
 ## Examples
 
 ```r
-library(microbiomestar)
+library(CompStellation)
 library(phyloseq)
 
 data("GlobalPatterns")
 # Subset to a smaller physeq for demonstration
 gp <- subset_samples(GlobalPatterns, SampleType %in% c("Feces", "Ocean", "Soil"))
 # For better and more complete examples, access the vignettes
-# vignette("microbiomeplots")
+# vignette("CompStellation")
 # Plot Taxa Star Plot with Standard Error shading
 plot_taxa_star(
   physeq = gp,

@@ -2,7 +2,7 @@ require(dplyr)
 require(ggplot2)
 require(phyloseq)
 require(microViz)
-require(microbiomestar)
+require(CompStellation)
 require(vegan)
 #read in metadata table
 metadata_antony<-read.delim("C:/Users/kmmuf/Downloads/metadata 1.tsv")

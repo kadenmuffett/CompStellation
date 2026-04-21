@@ -1,8 +1,8 @@
 ---
-title: "Introduction to microbiomestar"
+title: "Introduction to CompStellation"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to microbiomestar}
+  %\VignetteIndexEntry{Introduction to CompStellation}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -16,12 +16,12 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-The `microbiomeplots` package provides an easy way to visualize complex microbiome dynamics. It builds on top of `phyloseq`, `microViz`, and `ggplot2` to offer aesthetically pleasing and highly informative "star/radar" plots. These visualizations are particularly useful for seeing differences in microbial composition and relative abundance alongside ordination spaces.
+The `CompStellation` package provides an easy way to visualize complex microbiome dynamics. It builds on top of `phyloseq`, `microViz`, and `ggplot2` to offer aesthetically pleasing and highly informative "star/radar" plots. These visualizations are particularly useful for seeing differences in microbial composition and relative abundance alongside ordination spaces.
 
 ## Setup
 
 ```{r setup, eval=FALSE}
-library(microbiomestar)
+library(CompStellation)
 library(phyloseq)
 library(dplyr)
 library(ggplot2)
