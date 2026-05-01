@@ -28,6 +28,32 @@ get_default_colors <- function(groups) {
   return(colors)
 }
 
+get_default_colors_hclust <- function(groups) {
+  n <- length(groups)
+
+  # A pleasing muted palette (Okabe-Ito inspired + extras)
+  # 1. Orange, 2. Sky Blue, 3. Bluish Green, 4. Yellow, 5. Blue, 6. Vermilion, 7. Reddish Purple, 8. Grey
+  base_palette <- c("#990000", # Crimson Red
+  "#994C00", # Burnt Orange
+  "#666600", # Dark Citrine
+  "#006600", # Deep Kelly Green
+  "#006666", # Dark Manganese Teal
+  "#000099", # Royal Blue
+  "#4C0099", # Deep Violet
+  "#99004C"  # Raspberry Red)
+
+
+  if (n > length(base_palette)) {
+    warning("More groups than default colors available. Recycling colors.")
+    colors <- rep(base_palette, length.out = n)
+  } else {
+    colors <- base_palette[1:n]
+  }
+
+  names(colors) <- groups
+  return(colors)
+}
+
 #' Get Clade-Based Colors from Hierarchical Clustering
 #'
 #' Cuts a dendrogram into clades and assigns a visually distinct base color
@@ -43,7 +69,7 @@ get_hclust_colors <- function(hc_res, ordered_names, k = NULL) {
   ordered_names <- as.character(ordered_names)
   n <- length(ordered_names)
   if (n <= 3) {
-    return(stats::setNames(get_default_colors(as.character(1:n)), ordered_names))
+    return(stats::setNames(get_default_colors_hclust(as.character(1:n)), ordered_names))
   }
 
   if (is.null(k)) {
@@ -57,7 +83,7 @@ get_hclust_colors <- function(hc_res, ordered_names, k = NULL) {
   hc_res$labels <- original_names
 
   clusters <- stats::cutree(hc_res, k = k)
-  base_colors <- get_default_colors(as.character(1:k))
+  base_colors <- get_default_colors_hclust(as.character(1:k))
 
   final_colors <- character(n)
   names(final_colors) <- ordered_names
