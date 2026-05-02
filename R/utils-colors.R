@@ -33,14 +33,16 @@ get_default_colors_hclust <- function(groups) {
 
   # A pleasing muted palette (Okabe-Ito inspired + extras)
   # 1. Orange, 2. Sky Blue, 3. Bluish Green, 4. Yellow, 5. Blue, 6. Vermilion, 7. Reddish Purple, 8. Grey
-  base_palette <- c("#990000", # Crimson Red
-  "#994C00", # Burnt Orange
-  "#666600", # Dark Citrine
-  "#006600", # Deep Kelly Green
-  "#006666", # Dark Manganese Teal
-  "#000099", # Royal Blue
-  "#4C0099", # Deep Violet
-  "#99004C"  # Raspberry Red)
+  base_palette <- c(
+    "#990000", # Crimson Red
+    "#994C00", # Burnt Orange
+    "#666600", # Dark Citrine
+    "#006600", # Deep Kelly Green
+    "#006666", # Dark Manganese Teal
+    "#000099", # Royal Blue
+    "#4C0099", # Deep Violet
+    "#99004C"
+  ) # Raspberry Red
 
 
   if (n > length(base_palette)) {
