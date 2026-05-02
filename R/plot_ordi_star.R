@@ -15,6 +15,8 @@
 #' @param distance An accepted phyloseq ordination type ("bray" for example). Required if `ord` is NULL.
 #' @param ord An optional existing ordination object (e.g., from \code{phyloseq::ordinate()}). If provided, ordination is skipped.
 #' @param plot_order A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.
+#' @param n_axes Number of axes to plot.
+#' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
 #'
 #' @return A ggplot object representing the star plot of PCoA centroids.
 #'
@@ -39,7 +41,7 @@
 #' #     distance = "bray"
 #' #    )
 #' #
-plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = NULL, ord = NULL, plot_order = NULL, n_axes = 5) {
+plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = NULL, ord = NULL, plot_order = NULL, n_axes = 5, base_colors = NULL) {
   # --- 1. Input Validation ---
   if (!inherits(physeq, "phyloseq")) {
     stop("Error: 'physeq' must be a VALID phyloseq object.")
@@ -195,10 +197,21 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
       hc_res <- stats::hclust(dist_m, method = "complete")
       ordered_names <- long_df[[sample_var]][hc_res$order]
 
-      colors_all <- get_hclust_colors(hc_res, ordered_names)
+      colors_all <- get_hclust_colors(hc_res, ordered_names, base_colors = base_colors)
     } else {
       colors_all <- get_default_colors(groups)
     }
+  } else if (!is.null(plot_order) && length(plot_order) == 1 && plot_order == "hclust") {
+    # If hclust + color options specified, treat colors as bases for hclust base_palette
+    long_df <- pcoa_stats %>%
+      dplyr::select(!!sym(sample_var), Axis, Mean_Position) %>%
+      tidyr::pivot_wider(names_from = Axis, values_from = Mean_Position, values_fill = list(Mean_Position = 0))
+
+    dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+    hc_res <- stats::hclust(dist_m, method = "complete")
+    ordered_names <- long_df[[sample_var]][hc_res$order]
+
+    colors_all <- get_hclust_colors(hc_res, ordered_names, base_colors = colors_all)
   }
 
   title_suffix <- switch(error_bar,

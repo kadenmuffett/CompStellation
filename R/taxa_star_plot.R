@@ -20,6 +20,7 @@
 #'   Controls the transparency of the polygon fill under the star plot.
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
 #' @param plot_order A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.
+#' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
 #'
 #' @return A ggplot object representing the star plot.
 #'
@@ -52,7 +53,7 @@
 #' #   ...
 #' #   error_bar = "none"
 #' # )
-plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL) {
+plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL) {
   # --- 1. Input Validation and Conversion ---
 
   # Check if input is a data frame and convert to phyloseq if necessary
@@ -236,10 +237,22 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
       hc_res$labels <- as.character(long_df[[sample_var]])
       ordered_names <- hc_res$labels[hc_res$order]
 
-      colors_all <- get_hclust_colors(hc_res, ordered_names)
+      colors_all <- get_hclust_colors(hc_res, ordered_names, base_colors = base_colors)
     } else {
       colors_all <- get_default_colors(groups)
     }
+  } else if (!is.null(plot_order) && length(plot_order) == 1 && plot_order == "hclust") {
+    # If hclust + color options specified, treat colors as bases for hclust base_palette
+    long_df <- df_grouped_2 %>%
+      dplyr::select(!!sym(sample_var), Taxa_Group, mean_Abundance) %>%
+      tidyr::pivot_wider(names_from = Taxa_Group, values_from = mean_Abundance, values_fill = list(mean_Abundance = 0))
+
+    dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+    hc_res <- stats::hclust(dist_m, method = "complete")
+    hc_res$labels <- as.character(long_df[[sample_var]])
+    ordered_names <- hc_res$labels[hc_res$order]
+
+    colors_all <- get_hclust_colors(hc_res, ordered_names, base_colors = colors_all)
   }
 
   title_suffix <- switch(error_bar,

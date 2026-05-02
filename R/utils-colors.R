@@ -64,14 +64,20 @@ get_default_colors_hclust <- function(groups) {
 #' @param hc_res An hclust object.
 #' @param ordered_names The names of the elements in the order of the clustered leaves.
 #' @param k Optional. The number of clades to cut the tree into. If NULL, determines dynamically.
+#' @param base_colors Optional. A character vector of base colors to use for clades.
 #'
 #' @return A named character vector of hex colors matching ordered_names.
 #' @keywords internal
-get_hclust_colors <- function(hc_res, ordered_names, k = NULL) {
+get_hclust_colors <- function(hc_res, ordered_names, k = NULL, base_colors = NULL) {
   ordered_names <- as.character(ordered_names)
   n <- length(ordered_names)
   if (n <= 3) {
-    return(stats::setNames(get_default_colors_hclust(as.character(1:n)), ordered_names))
+    if (is.null(base_colors)) {
+      pool <- get_default_colors_hclust(as.character(1:n))
+    } else {
+      pool <- rep(base_colors, length.out = n)
+    }
+    return(stats::setNames(pool[1:n], ordered_names))
   }
 
   if (is.null(k)) {
@@ -85,7 +91,12 @@ get_hclust_colors <- function(hc_res, ordered_names, k = NULL) {
   hc_res$labels <- original_names
 
   clusters <- stats::cutree(hc_res, k = k)
-  base_colors <- get_default_colors_hclust(as.character(1:k))
+  
+  if (is.null(base_colors)) {
+    b_colors <- get_default_colors_hclust(as.character(1:k))
+  } else {
+    b_colors <- rep(base_colors, length.out = k)
+  }
 
   final_colors <- character(n)
   names(final_colors) <- ordered_names
@@ -96,10 +107,10 @@ get_hclust_colors <- function(hc_res, ordered_names, k = NULL) {
     n_members <- length(ordered_clade_members)
 
     if (n_members == 1) {
-      final_colors[ordered_clade_members] <- as.character(base_colors[i])
+      final_colors[ordered_clade_members] <- as.character(b_colors[i])
     } else if (n_members > 1) {
       # Mix the base color with white to get distinct shades within the clade
-      ramp <- grDevices::colorRampPalette(c("#FFFFFF", base_colors[i]))
+      ramp <- grDevices::colorRampPalette(c("#FFFFFF", b_colors[i]))
       shades <- ramp(n_members + 2)[3:(n_members + 2)]
 
       # Assign shades according to the hclust tree leaf order
