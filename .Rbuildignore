@@ -1,2 +1,4 @@
 ^microbiomestar\.Rproj$
 ^\.Rproj\.user$
+^\.github$
+^tests/testthat\.Rout$
