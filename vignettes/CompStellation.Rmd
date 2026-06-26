@@ -56,13 +56,13 @@ taxa_plot <- plot_taxa_star(
 print(taxa_plot)
 ```
 
-### 2. `plot_pcoa_star()`
+### 2. `plot_ordi_star()`
 
-Ordination is a cornerstone of microbiome analysis. `plot_pcoa_star` performs Principal Coordinate Analysis (PCoA) on distance matrices (like Bray-Curtis) and replaces standard points with star plots representing the actual taxonomic composition of each sample in the ordination space.
+Ordination is a cornerstone of microbiome analysis. `plot_ordi_star` performs Principal Coordinate Analysis (PCoA) on distance matrices (like Bray-Curtis) and replaces standard points with star plots representing the actual taxonomic composition of each sample in the ordination space.
 
 ```{r pcoa-star, eval=FALSE}
 # Create PCoA plot with embedded taxa abundance star plots
-plot_pcoa_star(
+plot_ordi_star(
     physeq = gp,
     sample_var = "SampleType",
     distance = "bray",
@@ -70,7 +70,7 @@ plot_pcoa_star(
 )
 # Create PCoA plot with embedded taxa abundance star plots
 # Samples are grouped by SampleType but displayed together
-pcoa_plot <- plot_pcoa_star(
+pcoa_plot <- plot_ordi_star(
     physeq = gp,
     sample_var = "SampleType",
     distance = "bray",
