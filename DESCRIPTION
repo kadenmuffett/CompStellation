@@ -8,6 +8,8 @@ License: SHRUGGIE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+Remotes: 
+    david-barnett/microViz
 Imports: 
     dplyr,
     ggplot2,
