@@ -25,7 +25,8 @@
 #' @export
 #'
 #' @examples
-#' # plot_core_matrix(physeq, "Treatment", percent_samples = 0.5, taxa_rank = "Genus", samplecolumn = "SampleID", log_scale = FALSE)
+#' # plot_core_matrix(physeq, "Treatment", percent_samples = 0.5, 
+#' #                  taxa_rank = "Genus", samplecolumn = "SampleID")
 plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_threshold = 0, taxa_rank, samplecolumn, log_scale = FALSE, group_subset = NULL, ...) {
     # --- 1. Input Validation ---
 

@@ -11,10 +11,12 @@ plot_taxa_star(
   taxa_names = NULL,
   colors_all,
   samplecolumn,
+  view_type = "separate",
   error_bar = "IQR",
-  fill_alpha = 0.4,
+  fill_alpha = 0.2,
   log_scale = FALSE,
-  plot_order = NULL
+  plot_order = NULL,
+  base_colors = NULL
 )
 }
 \arguments{
@@ -29,17 +31,24 @@ names for (e.g., "Phylum", "Genus").}
 \item{taxa_names}{A character vector containing the names of the three specific
 taxa you want to plot. If NULL (default), the top 4 most abundant taxa are selected.}
 
+\item{colors_all}{Optional. A character vector of colors, or "hclust" for automatic clustering colors.}
+
 \item{samplecolumn}{This is the ID column for your samples.}
+
+\item{view_type}{A character string, either "separate" (default) or "together".
+Determines whether groups are plotted on the same plot or faceted.}
 
 \item{error_bar}{A character string, one of "IQR" (default), "SE", or "none".
 Determines the type of error bars to display.}
 
-\item{fill_alpha}{A numeric value between 0 and 1 (default 0.4).
+\item{fill_alpha}{A numeric value between 0 and 1 (default 0.2).
 Controls the transparency of the polygon fill under the star plot.}
 
 \item{log_scale}{A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.}
 
 \item{plot_order}{A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.}
+
+\item{base_colors}{Optional. A character vector of base colors to use for hclust coloring.}
 }
 \value{
 A ggplot object representing the star plot.
@@ -56,8 +65,11 @@ of three specified taxa plus an "Other" category, faceted by a sample variable.
 #     taxa_rank = "Phylum",
 #     # taxa_names = c("Firmicutes", "Bacteroidetes"), # Optional
 #     samplecolumn = "Sample_ID",
+#     view_type = "separate",
 #     error_bar = "SE",
-#     fill_alpha = 0.2
+#     fill_alpha = 0.2,
+#     log_scale = FALSE,
+#     plot_order = NULL
 #    )
 #
 

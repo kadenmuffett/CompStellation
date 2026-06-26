@@ -4,7 +4,7 @@
 \alias{coord_radar}
 \title{Custom Radar Coordinate System}
 \usage{
-coord_radar(theta = "x", start = 0, direction = 1)
+coord_radar(theta = "x", start = 0, direction = 1, clip = "off")
 }
 \arguments{
 \item{theta}{Variable to map angle to ('x' or 'y').}
@@ -12,6 +12,8 @@ coord_radar(theta = "x", start = 0, direction = 1)
 \item{start}{Offset of starting point from 12 o'clock in radians.}
 
 \item{direction}{1, clockwise; -1, anticlockwise.}
+
+\item{clip}{A character string for clipping (default "off").}
 }
 \description{
 Custom Radar Coordinate System

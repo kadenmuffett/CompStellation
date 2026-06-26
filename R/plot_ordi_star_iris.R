@@ -19,6 +19,8 @@
 #' @param fill_alpha Numeric. Transparency of the central star polygon fill.
 #' @param distance Ordination distance metric (required if ord is NULL, e.g., "bray").
 #' @param ord Optional existing ordination object (e.g., from \code{phyloseq::ordinate()}).
+#' @param method A character string specifying the ordination method (default "PCoA").
+#' @param n_axes Number of axes to use for PCoA (default 5).
 #' @param plot_order Optional character vector for custom ordering of the sample variable.
 #'
 #' @return A ggplot object representing the scatter-iris visualization.

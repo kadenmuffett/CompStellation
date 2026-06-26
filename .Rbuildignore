@@ -1,4 +1,6 @@
-^microbiomestar\.Rproj$
+^CompStellation\.Rproj$
 ^\.Rproj\.user$
 ^\.github$
 ^tests/testthat\.Rout$
+^test$
+^[^/]*\.R$

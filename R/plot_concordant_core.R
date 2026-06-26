@@ -22,7 +22,8 @@
 #' @export
 #'
 #' @examples
-#' # plot_concordant_core(physeq, "Treatment", percent_samples = 0.5, taxa_rank = "Genus", samplecolumn = "SampleID", log_scale = FALSE)
+#' # plot_concordant_core(physeq, "Treatment", percent_samples = 0.5, 
+#' #                      taxa_rank = "Genus", samplecolumn = "SampleID")
 plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_threshold = 0, taxa_rank, samplecolumn, log_scale = FALSE, group_subset = NULL, ...) {
     # --- 1. Input Validation ---
 

@@ -17,10 +17,7 @@ The percentage of samples within a group that a taxon must be present in to be c
 If > 1, it is treated as a percentage (e.g., 50 means 50\%). If <= 1, it is treated as a proportion (e.g., 0.5 means 50\%).}
 
 \item{abundance_threshold}{A numeric value (default 0).
-The relative abundance (or count, depending on your data) threshold a taxon must exceed
 in a sample to be considered "present".}
-
-\item{fill_alpha}{A numeric value for the point transparency (not used in current plot design but kept for consistency, reserved).}
 }
 \value{
 A ggplot object representing the core taxa presence/absence plot.

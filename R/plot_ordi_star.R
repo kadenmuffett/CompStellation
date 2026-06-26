@@ -6,6 +6,8 @@
 #' @param physeq A phyloseq object containing your microbiome data.
 #' @param sample_var A character string. The name of the column in your sample data
 #'   to use for grouping samples (e.g., "location", "treatment").
+#' @param colors_all Optional. A character vector of colors, or "hclust" for automatic clustering colors.
+#' @param method A character string specifying the ordination method (default "PCoA").
 #' @param view_type A character string, either "together" (default) or "separate".
 #'   Determines whether groups are plotted on the same plot or faceted.
 #' @param error_bar A character string, one of "IQR" (default), "SE", or "none".

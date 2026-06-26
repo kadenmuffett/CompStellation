@@ -3,6 +3,7 @@
 #' @param theta Variable to map angle to ('x' or 'y').
 #' @param start Offset of starting point from 12 o'clock in radians.
 #' @param direction 1, clockwise; -1, anticlockwise.
+#' @param clip A character string for clipping (default "off").
 #' 
 #' @keywords internal
 coord_radar <- function (theta = "x", start = 0, direction = 1, clip = "off")

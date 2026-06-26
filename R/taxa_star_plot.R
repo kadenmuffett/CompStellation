@@ -21,6 +21,7 @@
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
 #' @param plot_order A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.
 #' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
+#' @param colors_all Optional. A character vector of colors, or "hclust" for automatic clustering colors.
 #'
 #' @return A ggplot object representing the star plot.
 #'
@@ -141,7 +142,7 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   physeq_rel <- phyloseq::transform_sample_counts(physeq, function(x) 1 * x / sum(x))
 
   if (taxa_rank != "OTU") {
-    physeq_taxglom <- tax_agg(physeq_rel, rank = taxa_rank)
+    physeq_taxglom <- microViz::tax_agg(physeq_rel, rank = taxa_rank)
     physeq_rel <- physeq_taxglom
     message("Taxa aggregated to rank: ", taxa_rank, "using microViz::tax_agg.")
   } else {
