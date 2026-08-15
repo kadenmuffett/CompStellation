@@ -4,7 +4,14 @@
 \alias{coreselect}
 \title{Select and Plot Core Microbiome}
 \usage{
-coreselect(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0)
+coreselect(
+  physeq,
+  group_var,
+  percent_samples = 0.95,
+  abundance_threshold = 0,
+  abundance_type = c("counts", "relative"),
+  verbose = TRUE
+)
 }
 \arguments{
 \item{physeq}{A phyloseq object containing your microbiome data.}
@@ -12,21 +19,43 @@ coreselect(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0)
 \item{group_var}{A character string. The name of the column in your sample data
 to use for grouping samples (e.g., "Treatment", "Location").}
 
-\item{percent_samples}{A numeric value between 0 and 1 (or 0 and 100).
-The percentage of samples within a group that a taxon must be present in to be considered "core".
-If > 1, it is treated as a percentage (e.g., 50 means 50\%). If <= 1, it is treated as a proportion (e.g., 0.5 means 50\%).}
+\item{percent_samples}{The proportion of samples within a group that a taxon
+must be present in to be considered "core". Given either as a proportion in
+(0, 1] or as a percentage in (1, 100]; the interpretation chosen is
+reported, because a bare \code{1} means 100\%, not 1\%. Values outside those
+ranges are an error.}
 
-\item{abundance_threshold}{A numeric value (default 0).
-in a sample to be considered "present".}
+\item{abundance_threshold}{A numeric value (default 0). The abundance a taxon
+must \strong{exceed} in a sample for that sample to count as present. The
+default of 0 therefore means "any non-zero abundance".}
+
+\item{abundance_type}{Either "counts" (default; \code{abundance_threshold} is
+applied to the abundances as supplied) or "relative" (each sample is
+converted to proportions first, so \code{abundance_threshold} is a relative
+abundance).}
+
+\item{verbose}{Logical. If TRUE (default), report the resolved thresholds.}
 }
 \value{
 A ggplot object representing the core taxa presence/absence plot.
+The core taxa themselves are attached as the "core_list" attribute.
 }
 \description{
-This function identifies "core" taxa within treatment groups—defined as taxa present
-in a specified percentage of samples at a specified relative abundance—and visualizes
-their presence/absence across all groups.
+This function identifies "core" taxa within treatment groups—defined as taxa
+present above an abundance threshold in a specified proportion of the samples
+in a group—and visualizes their presence/absence across all groups.
 }
+\section{A caution about sequencing depth}{
+
+With \code{abundance_type = "counts"} (the default), presence is tested on the
+abundances as supplied. If library sizes are uneven, a taxon registers as
+present more often in deeply sequenced samples, so the core partly measures
+sequencing effort rather than biology. The function warns when library sizes
+vary more than tenfold. Rarefying beforehand, or using
+\code{abundance_type = "relative"} with a non-zero \code{abundance_threshold}, avoids
+this.
+}
+
 \examples{
 # data(GlobalPatterns)
 # coreselect(GlobalPatterns, "SampleType", percent_samples = 50, abundance_threshold = 0)

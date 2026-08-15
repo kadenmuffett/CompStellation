@@ -88,12 +88,19 @@ plot_ordi_star_tree <- function(physeq, sample_var, ord = NULL, method = "PCoA",
       .groups = "drop"
     )
   
-  # 2. Calculate hclust exactly as in plot_ordi_star
+  # 2. Calculate hclust exactly as in plot_ordi_star.
+  # Ordination scores are Euclidean by construction and are signed, so
+  # Bray-Curtis (which presupposes non-negative abundance-like data) is not a
+  # valid distance here. Euclidean distance is, and unlike Bray-Curtis it is
+  # unaffected by the radial offset applied above.
   wide_df <- pcoa_stats %>%
     dplyr::select(!!sym(sample_var), Axis, Mean_Position) %>%
     tidyr::pivot_wider(names_from = Axis, values_from = Mean_Position, values_fill = list(Mean_Position = 0))
-  
-  dist_mat <- vegan::vegdist(wide_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+
+  dist_mat <- stats::dist(
+    as.matrix(wide_df %>% dplyr::select(-!!sym(sample_var))),
+    method = "euclidean"
+  )
   hc_res <- stats::hclust(dist_mat, method = "complete")
   
   # Crucial: Apply labels to the hclust object so the dendrogram has names
@@ -135,9 +142,9 @@ plot_ordi_star_tree <- function(physeq, sample_var, ord = NULL, method = "PCoA",
   dend_colored <- dendrapply(dend, color_leaves, colors = tree_colors)
   
   # 5. Plot
-  plot(dend_colored, 
-       main = paste("Hierarchical Clustering of", sample_var, "\n(Matches plot_ordi_star colors)"), 
-       ylab = "Bray-Curtis Distance")
+  plot(dend_colored,
+       main = paste("Hierarchical Clustering of", sample_var, "\n(Matches plot_ordi_star colors)"),
+       ylab = "Euclidean distance between group centres in ordination space")
   
   # Return data invisibly
   invisible(list(hc = hc_res, dend = dend_colored, colors = tree_colors))

@@ -9,10 +9,12 @@ plot_concordant_core(
   group_var,
   percent_samples,
   abundance_threshold = 0,
+  abundance_type = c("counts", "relative"),
   taxa_rank,
   samplecolumn,
   log_scale = FALSE,
   group_subset = NULL,
+  verbose = TRUE,
   ...
 )
 }
@@ -21,9 +23,15 @@ plot_concordant_core(
 
 \item{group_var}{A character string. The name of the column to use for grouping.}
 
-\item{percent_samples}{A numeric value for prevalence threshold (0-1).}
+\item{percent_samples}{The proportion of samples within a group that a taxon
+must be present in to be considered "core". Given either as a proportion in
+(0, 1] or as a percentage in (1, 100]; the interpretation chosen is
+reported, because a bare \code{1} means 100\%, not 1\%.}
 
-\item{abundance_threshold}{A numeric value for abundance threshold.}
+\item{abundance_threshold}{A numeric value (default 0). The abundance a taxon
+must \strong{exceed} in a sample for that sample to count as present.}
+
+\item{abundance_type}{Either "counts" (default) or "relative"; see \code{\link[=coreselect]{coreselect()}}.}
 
 \item{taxa_rank}{A character string. The taxonomic rank to use (e.g., "Genus").}
 
@@ -33,16 +41,21 @@ plot_concordant_core(
 
 \item{group_subset}{A character vector specifying which groups to include (if NULL, all are used).}
 
+\item{verbose}{Logical. If TRUE (default), report the resolved thresholds and
+the size of each group's core.}
+
 \item{...}{Additional arguments passed to \code{plot_taxa_star}, e.g. "colors_all".}
 }
 \value{
-A ggplot object representing the star plot of concordant core taxa.
+A ggplot object representing the star plot of concordant core taxa,
+with the shared core attached as the "concordant_core" attribute and the
+per-group core sizes as the "core_sizes" attribute.
 }
 \description{
 This function identifies the concordant (overlapping) core taxa across all evaluated groups
 and plots their relative abundance using \code{plot_taxa_star}.
 }
 \examples{
-# plot_concordant_core(physeq, "Treatment", percent_samples = 0.5, 
+# plot_concordant_core(physeq, "Treatment", percent_samples = 0.5,
 #                      taxa_rank = "Genus", samplecolumn = "SampleID")
 }

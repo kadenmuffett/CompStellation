@@ -12,23 +12,40 @@
 #'   taxa you want to plot. If NULL (default), the top 4 most abundant taxa are selected.
 #'
 #' @param error_bar A character string, one of "IQR" (default), "SE", or "none".
-#'   Determines the type of error bars to display.
+#'   "IQR" draws the interquartile range of the samples in the group, around the
+#'   group **median**; "SE" draws one standard error of the group **mean**,
+#'   around the mean. The two describe different things — spread of the samples
+#'   versus precision of the centre — and the plot title records which was used.
 #' @param samplecolumn This is the ID column for your samples.
 #' @param view_type A character string, either "separate" (default) or "together".
 #'   Determines whether groups are plotted on the same plot or faceted.
 #' @param fill_alpha A numeric value between 0 and 1 (default 0.2).
 #'   Controls the transparency of the polygon fill under the star plot.
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
-#' @param plot_order A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.
+#' @param plot_order A character vector for custom ordering of the sample variable,
+#'   "hclust" for complete-linkage clustering on Bray-Curtis distances between the
+#'   group mean abundances, or NULL (default) for alphabetical.
 #' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
 #' @param colors_all Optional. A character vector of colors, or "hclust" for automatic clustering colors.
 #'
 #' @return A ggplot object representing the star plot.
 #'
+#' @section Interpreting the plot:
+#' The abundances are compositional: relative abundances within a sample sum to
+#' 1, so the spokes are not independent — a rise in one taxon mechanically
+#' depresses the others, and the pooled "Other" wedge is usually the largest
+#' single value. Group values are the mean (or median) of per-sample relative
+#' abundances, which is not the same as the relative abundance of pooled counts.
+#' The area enclosed by a polygon depends on the order of the spokes and is not
+#' an interpretable quantity; spokes are ordered by decreasing overall abundance
+#' with "Other" last.
+#'
 #' @import phyloseq
 #' @import ggplot2
 #' @import dplyr
 #' @import vegan
+#'
+#' @importFrom stats median quantile sd
 #'
 #' @export
 #'
@@ -139,7 +156,9 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
   # --- 2. Data Transformation ---
 
-  physeq_rel <- phyloseq::transform_sample_counts(physeq, function(x) 1 * x / sum(x))
+  # to_relative() guards against empty samples, which would otherwise become a
+  # row of NaN that propagates into every downstream mean.
+  physeq_rel <- phyloseq::transform_sample_counts(physeq, to_relative)
 
   if (taxa_rank != "OTU") {
     physeq_taxglom <- microViz::tax_agg(physeq_rel, rank = taxa_rank)
@@ -182,14 +201,16 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   df_grouped_2 <- df_grouped %>%
     # Group by the specified sample variable and the new Taxa_Group
     group_by(!!sym(sample_var), Taxa_Group) %>%
-    # Calculate the mean abundance and stats for each group
+    # Calculate the centre and spread for each group
     summarise(
+      N_samples = dplyr::n(),
       mean_Abundance = mean(sum_Abundance),
+      median_Abundance = stats::median(sum_Abundance),
       # IQR Stats
       Q25_Abundance = quantile(sum_Abundance, 0.25),
       Q75_Abundance = quantile(sum_Abundance, 0.75),
       # SE Stats
-      SE_Abundance = sd(sum_Abundance) / sqrt(n()),
+      SE_Abundance = sd(sum_Abundance) / sqrt(dplyr::n()),
       .groups = "drop"
     ) %>%
     mutate(
@@ -197,18 +218,57 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
       SE_Max = mean_Abundance + SE_Abundance
     )
 
+  # The IQR brackets the median, so plot the median when the IQR is shown; the
+  # SE describes the mean, so plot the mean when the SE is shown. Microbiome
+  # abundances are strongly right-skewed, so the two centres differ materially.
+  center_col <- if (error_bar == "IQR") "median_Abundance" else "mean_Abundance"
+  df_grouped_2$Center_Abundance <- df_grouped_2[[center_col]]
+  center_label <- if (error_bar == "IQR") "Median" else "Mean"
+
+  # Groups of one have no spread to show; say so rather than silently dropping
+  # the interval.
+  if (error_bar != "none") {
+    thin <- unique(as.character(df_grouped_2[[sample_var]][df_grouped_2$N_samples < 2]))
+    if (length(thin) > 0) {
+      warning(
+        "No interval can be drawn for group(s) with a single sample: ",
+        paste(thin, collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+  }
+
+  # The enclosed area of a star depends on the order of its spokes, so order
+  # them deliberately: by decreasing overall abundance, with "Other" last.
+  taxa_by_abundance <- df_grouped_2 %>%
+    dplyr::filter(Taxa_Group != "Other") %>%
+    dplyr::group_by(Taxa_Group) %>%
+    dplyr::summarise(total = sum(Center_Abundance, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::arrange(dplyr::desc(total)) %>%
+    dplyr::pull(Taxa_Group) %>%
+    as.character()
+
+  df_grouped_2$Taxa_Group <- order_taxa_group(df_grouped_2$Taxa_Group, levels_order = taxa_by_abundance)
+
   # --- 3b. Plot Ordering ---
+  # Bray-Curtis is appropriate here: the values being clustered are non-negative
+  # relative abundances. (It would not be appropriate on ordination scores.)
+  cluster_groups <- function() {
+    wide_df <- df_grouped_2 %>%
+      dplyr::select(!!sym(sample_var), Taxa_Group, Center_Abundance) %>%
+      tidyr::pivot_wider(names_from = Taxa_Group, values_from = Center_Abundance, values_fill = list(Center_Abundance = 0))
+
+    dist_m <- vegan::vegdist(wide_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+    hc_res <- stats::hclust(dist_m, method = "complete")
+    hc_res$labels <- as.character(wide_df[[sample_var]])
+    hc_res
+  }
+
   if (!is.null(plot_order)) {
     if (length(plot_order) == 1 && plot_order == "hclust") {
-      message("Calculating hclust for plot ordering using Bray-Curtis distance and complete linkage...")
-      # Calculate hclust
-      wide_df <- df_grouped_2 %>%
-        dplyr::select(!!sym(sample_var), Taxa_Group, mean_Abundance) %>%
-        tidyr::pivot_wider(names_from = Taxa_Group, values_from = mean_Abundance, values_fill = list(mean_Abundance = 0))
-
-      dist_mat <- vegan::vegdist(wide_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
-      hc <- stats::hclust(dist_mat, method = "complete")
-      ordered_groups <- wide_df[[sample_var]][hc$order]
+      message("Ordering groups by complete-linkage clustering on Bray-Curtis distances between group abundances...")
+      hc <- cluster_groups()
+      ordered_groups <- hc$labels[hc$order]
 
       df_grouped_2[[sample_var]] <- factor(df_grouped_2[[sample_var]], levels = ordered_groups)
     } else {
@@ -220,22 +280,16 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   # --- 4. Plotting ---
 
   # Handle default colors if missing
-  if (missing(colors_all) || (length(colors_all) == 1 && colors_all == "hclust")) {
+  if (missing(colors_all) || is.null(colors_all) || (length(colors_all) == 1 && colors_all == "hclust")) {
     if (is.factor(df_grouped_2[[sample_var]])) {
       groups <- levels(df_grouped_2[[sample_var]])
     } else {
       groups <- as.character(unique(df_grouped_2[[sample_var]]))
     }
 
-    if (!missing(colors_all) && colors_all == "hclust") {
+    if (!missing(colors_all) && !is.null(colors_all) && colors_all == "hclust") {
       # Order colors by hierarchical clustering automatically
-      long_df <- df_grouped_2 %>%
-        dplyr::select(!!sym(sample_var), Taxa_Group, mean_Abundance) %>%
-        tidyr::pivot_wider(names_from = Taxa_Group, values_from = mean_Abundance, values_fill = list(mean_Abundance = 0))
-
-      dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
-      hc_res <- stats::hclust(dist_m, method = "complete")
-      hc_res$labels <- as.character(long_df[[sample_var]])
+      hc_res <- cluster_groups()
       ordered_names <- hc_res$labels[hc_res$order]
 
       colors_all <- get_hclust_colors(hc_res, ordered_names, base_colors = base_colors)
@@ -244,13 +298,7 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     }
   } else if (!is.null(plot_order) && length(plot_order) == 1 && plot_order == "hclust") {
     # If hclust + color options specified, treat colors as bases for hclust base_palette
-    long_df <- df_grouped_2 %>%
-      dplyr::select(!!sym(sample_var), Taxa_Group, mean_Abundance) %>%
-      tidyr::pivot_wider(names_from = Taxa_Group, values_from = mean_Abundance, values_fill = list(mean_Abundance = 0))
-
-    dist_m <- vegan::vegdist(long_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
-    hc_res <- stats::hclust(dist_m, method = "complete")
-    hc_res$labels <- as.character(long_df[[sample_var]])
+    hc_res <- cluster_groups()
     ordered_names <- hc_res$labels[hc_res$order]
 
     colors_all <- get_hclust_colors(hc_res, ordered_names, base_colors = colors_all)
@@ -262,9 +310,15 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     "none" = ""
   )
 
+  caption_text <- switch(error_bar,
+    "IQR" = "Bars span the interquartile range of samples within each group, around the group median.",
+    "SE" = "Bars span one standard error of the group mean.",
+    "none" = NULL
+  )
+
   # Create the star plot
   star_plot <- ggplot(df_grouped_2, aes(
-    x = Taxa_Group, y = mean_Abundance, group = !!sym(sample_var),
+    x = Taxa_Group, y = Center_Abundance, group = !!sym(sample_var),
     fill = !!sym(sample_var), color = !!sym(sample_var)
   )) +
     geom_polygon(aes(), linewidth = 0.8, show.legend = FALSE, alpha = fill_alpha) +
@@ -275,13 +329,16 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
       text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
       axis.text.y = element_text(color = "gray50"),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
+      plot.caption = element_text(color = "gray40", hjust = 0, size = 8),
       plot.margin = margin(15, 15, 15, 15)
     ) +
     labs(
-      title = paste0("Relative Abundance of Key Taxa", title_suffix),
+      title = paste0(center_label, " Relative Abundance of Key Taxa", title_suffix),
       x = "",
-      y = "Relative Abundance",
-      color = "Sample"
+      y = paste0(center_label, " Relative Abundance"),
+      color = sample_var,
+      fill = sample_var,
+      caption = caption_text
     ) +
     coord_radar(clip = "off")
 

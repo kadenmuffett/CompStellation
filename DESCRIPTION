@@ -7,19 +7,22 @@ Description: This package is designed to take a dataframe or phyloseq object and
 License: AGPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
-Remotes: 
+biocViews: Microbiome, Metagenomics, Visualization, Sequencing
+Remotes:
     david-barnett/microViz
-Imports: 
+Imports:
     dplyr,
-    ggplot2,
+    ggplot2 (>= 3.4.0),
+    grDevices,
     microViz,
     phyloseq,
     patchwork,
     ggnewscale,
     scales,
+    stats,
     tidyr,
     tidyselect,
+    utils,
     vegan
 Suggests: 
     knitr,
@@ -28,3 +31,4 @@ Suggests:
     covr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.0

@@ -1,19 +1,37 @@
 #' Select and Plot Core Microbiome
 #'
-#' This function identifies "core" taxa within treatment groups—defined as taxa present
-#' in a specified percentage of samples at a specified relative abundance—and visualizes
-#' their presence/absence across all groups.
+#' This function identifies "core" taxa within treatment groups—defined as taxa
+#' present above an abundance threshold in a specified proportion of the samples
+#' in a group—and visualizes their presence/absence across all groups.
+#'
+#' @section A caution about sequencing depth:
+#' With `abundance_type = "counts"` (the default), presence is tested on the
+#' abundances as supplied. If library sizes are uneven, a taxon registers as
+#' present more often in deeply sequenced samples, so the core partly measures
+#' sequencing effort rather than biology. The function warns when library sizes
+#' vary more than tenfold. Rarefying beforehand, or using
+#' `abundance_type = "relative"` with a non-zero `abundance_threshold`, avoids
+#' this.
 #'
 #' @param physeq A phyloseq object containing your microbiome data.
 #' @param group_var A character string. The name of the column in your sample data
 #'   to use for grouping samples (e.g., "Treatment", "Location").
-#' @param percent_samples A numeric value between 0 and 1 (or 0 and 100).
-#'   The percentage of samples within a group that a taxon must be present in to be considered "core".
-#'   If > 1, it is treated as a percentage (e.g., 50 means 50%). If <= 1, it is treated as a proportion (e.g., 0.5 means 50%).
-#' @param abundance_threshold A numeric value (default 0).
-#'   in a sample to be considered "present".
+#' @param percent_samples The proportion of samples within a group that a taxon
+#'   must be present in to be considered "core". Given either as a proportion in
+#'   (0, 1] or as a percentage in (1, 100]; the interpretation chosen is
+#'   reported, because a bare `1` means 100%, not 1%. Values outside those
+#'   ranges are an error.
+#' @param abundance_threshold A numeric value (default 0). The abundance a taxon
+#'   must **exceed** in a sample for that sample to count as present. The
+#'   default of 0 therefore means "any non-zero abundance".
+#' @param abundance_type Either "counts" (default; `abundance_threshold` is
+#'   applied to the abundances as supplied) or "relative" (each sample is
+#'   converted to proportions first, so `abundance_threshold` is a relative
+#'   abundance).
+#' @param verbose Logical. If TRUE (default), report the resolved thresholds.
 #'
 #' @return A ggplot object representing the core taxa presence/absence plot.
+#'   The core taxa themselves are attached as the "core_list" attribute.
 #'
 #' @import phyloseq
 #' @import ggplot2
@@ -24,25 +42,29 @@
 #' @examples
 #' # data(GlobalPatterns)
 #' # coreselect(GlobalPatterns, "SampleType", percent_samples = 50, abundance_threshold = 0)
-coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0) {
+coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0,
+                       abundance_type = c("counts", "relative"), verbose = TRUE) {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
-        stop("Error: 'physeq' must be a VALID phyloseq object.")
+        stop("'physeq' must be a VALID phyloseq object.", call. = FALSE)
     }
 
     if (!group_var %in% phyloseq::sample_variables(physeq)) {
-        stop("Error: '", group_var, "' is not a valid sample variable in the phyloseq object.")
+        stop(
+            "'", group_var, "' is not a sample variable in the phyloseq object. Available: ",
+            paste(phyloseq::sample_variables(physeq), collapse = ", "), ".",
+            call. = FALSE
+        )
     }
 
-    # Normalize percent_samples to proportion 0-1
-    if (percent_samples > 1) {
-        percent_samples <- percent_samples / 100
-    }
+    abundance_type <- match.arg(abundance_type)
 
-    if (percent_samples < 0 || percent_samples > 1) {
-        stop("Error: 'percent_samples' must be between 0 and 1 (or 0 and 100).")
-    }
+    # Resolve and report the prevalence threshold, so that an ambiguous value
+    # such as 1 cannot be silently read as 1% when it means 100%
+    percent_samples <- resolve_prevalence(percent_samples, verbose = verbose)
+
+    if (abundance_type == "counts") warn_library_sizes(physeq)
 
     # Check number of groups
     sample_data_df <- data.frame(phyloseq::sample_data(physeq))
@@ -50,9 +72,9 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
     n_groups <- length(groups)
 
     if (n_groups < 2) {
-        warning("Warning: Factor '", group_var, "' has fewer than 2 groups. Comparison may not be meaningful.")
+        warning("Factor '", group_var, "' has fewer than 2 groups. Comparison may not be meaningful.", call. = FALSE)
     } else if (n_groups > 7) {
-        warning("Warning: Factor '", group_var, "' has more than 7 groups. Plot may be cluttered.")
+        warning("Factor '", group_var, "' has more than 7 groups. Plot may be cluttered.", call. = FALSE)
     }
 
     # --- 2. Identify Core Taxa per Group ---
@@ -86,29 +108,14 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
             next
         }
 
-        # Calculate prevalence for each taxon
-        # Prevalence = fraction of samples where abundance > threshold
-
-        # Extract OTU table
-        otu_tab <- phyloseq::otu_table(physeq_sub)
-
-        # Ensure taxa are rows for rowSums/rowMeans logic consistency
-        if (!phyloseq::taxa_are_rows(otu_tab)) {
-            otu_tab <- phyloseq::t(otu_tab)
-        }
-
-        # Convert to matrix
-        mat <- as.matrix(otu_tab)
-
-        # Binary matrix: 1 if > threshold, 0 otherwise
-        present_mat <- mat > abundance_threshold
-
-        # Calculate row sums (number of samples with presence)
-        prevalence_counts <- rowSums(present_mat)
-
-        # Calculate proportion
-        n_samples_group <- ncol(mat)
-        prevalence_prop <- prevalence_counts / n_samples_group
+        # Prevalence = fraction of samples in the group where the abundance
+        # exceeds the threshold. Shared with plot_core_matrix() and
+        # plot_concordant_core() so the three cannot drift apart.
+        prevalence_prop <- taxa_prevalence(
+            physeq_sub,
+            abundance_threshold = abundance_threshold,
+            abundance_type = abundance_type
+        )
 
         # Filter core taxa
         core_taxa <- names(prevalence_prop)[prevalence_prop >= percent_samples]
@@ -121,7 +128,7 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
     # --- 3. Combine and Format for Plotting ---
 
     if (length(core_list) == 0) {
-        stop("No core taxa found in any group with the designated thresholds.")
+        stop("No core taxa found in any group with the designated thresholds.", call. = FALSE)
     }
 
     # Get all unique core taxa across all groups
@@ -160,7 +167,14 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
         theme_bw() + # Clean theme
         labs(
             title = paste0("Core Microbiome (Prevalence >= ", percent_samples * 100, "%)"),
-            subtitle = paste0("Abundance Threshold > ", abundance_threshold),
+            subtitle = paste0(
+                "Present = ", abundance_type, " abundance > ", abundance_threshold,
+                "; n = ", paste(vapply(
+                    as.character(groups),
+                    function(g) sum(sample_data_df[[group_var]] == g, na.rm = TRUE),
+                    numeric(1)
+                ), collapse = "/"), " samples per group"
+            ),
             x = "Sample Group",
             y = "Taxon"
         ) +
@@ -168,6 +182,10 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
             axis.text.x = element_text(angle = 45, hjust = 1),
             axis.text.y = element_text(size = 8)
         )
+
+    # Return the memberships alongside the plot: previously the only way to see
+    # which taxa were core was to read them off the y-axis.
+    attr(p, "core_list") <- core_list
 
     return(p)
 }

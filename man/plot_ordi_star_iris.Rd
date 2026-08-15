@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_ordi_star_iris.R
 \name{plot_ordi_star_iris}
 \alias{plot_ordi_star_iris}
-\title{Plot a Star Plot of Mean PCoA Position Surrounded by a Taxonomic Iris Plot}
+\title{Plot a Star Plot of Group Ordination Position Surrounded by a Taxonomic Iris Plot}
 \usage{
 plot_ordi_star_iris(
   physeq,
@@ -18,7 +18,8 @@ plot_ordi_star_iris(
   distance = NULL,
   ord = NULL,
   plot_order = NULL,
-  n_axes = 5
+  n_axes = 5,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -32,17 +33,21 @@ to use for grouping samples (e.g., "location", "treatment").}
 \item{n_taxa}{Integer. The number of top taxa to explicitly show in the iris plot (default 5).
 Remaining taxa are grouped into "Other".}
 
-\item{colors_star}{Optional vector of colors for the central PCoA star polygons.}
+\item{colors_star}{Optional vector of colors for the central ordination star polygons.}
 
 \item{colors_taxa}{Optional vector of colors for the outer taxonomic rings.}
 
-\item{method}{A character string specifying the ordination method (default "PCoA").}
+\item{method}{A character string specifying the ordination method (default "PCoA").
+Constrained methods must be fitted separately and passed via \code{ord}.}
 
 \item{view_type}{Character. Either "separate" (default) or "together".
-Note: "together" concentrically stacks rings and polygons, which may be unreadable
-with many groups or many taxa. "separate" facets by group for clarity.}
+"separate" facets by group. "together" draws every group into the same
+radial band, which overplots and is only readable for a single group.}
 
-\item{error_bar}{A character string, one of "IQR" (default), "SE", or "none" for the PCoA star.}
+\item{error_bar}{A character string, one of "IQR" (default), "SE", or "none"
+for the central star. "IQR" draws the interquartile range of the samples in
+the group, around the group \strong{median}; "SE" draws one standard error of
+the group \strong{mean}, around the mean.}
 
 \item{fill_alpha}{Numeric. Transparency of the central star polygon fill.}
 
@@ -52,13 +57,38 @@ with many groups or many taxa. "separate" facets by group for clarity.}
 
 \item{plot_order}{Optional character vector for custom ordering of the sample variable.}
 
-\item{n_axes}{Number of axes to use for PCoA (default 5).}
+\item{n_axes}{Number of axes to use for the central star (default 5).}
+
+\item{verbose}{Logical. If TRUE (default), report progress and the
+conventions used for the axis percentages.}
 }
 \value{
-A ggplot object representing the scatter-iris visualization.
+A ggplot object representing the star-and-iris visualization.
 }
 \description{
-This experimental (beta) function combines a 5-axis PCoA radar plot (the "star")
+This experimental (beta) function combines an ordination radar plot (the "star")
 in the center, and surrounds it with a circular stacked bar chart (the "iris plot")
 representing the taxonomic composition of all individual samples belonging to that group.
+}
+\section{Interpreting the plot}{
+
+The two regions of the radial axis carry different units: the centre shows
+ordination scores (offset so that negative scores are plottable, with the
+tick labels undoing the offset) and the outer ring shows relative abundance
+from 0 to 1. Read each region against its own scale. As with
+\code{\link[=plot_ordi_star]{plot_ordi_star()}}, the area of the central polygon depends on the order of
+the spokes and is not an interpretable quantity.
+}
+
+\examples{
+# data(GlobalPatterns)
+# gp <- phyloseq::subset_samples(
+#   GlobalPatterns, SampleType \%in\% c("Feces", "Ocean", "Soil")
+# )
+# plot_ordi_star_iris(
+#   physeq = gp,
+#   sample_var = "SampleType",
+#   taxa_rank = "Phylum",
+#   distance = "bray"
+# )
 }

@@ -39,14 +39,19 @@ taxa you want to plot. If NULL (default), the top 4 most abundant taxa are selec
 Determines whether groups are plotted on the same plot or faceted.}
 
 \item{error_bar}{A character string, one of "IQR" (default), "SE", or "none".
-Determines the type of error bars to display.}
+"IQR" draws the interquartile range of the samples in the group, around the
+group \strong{median}; "SE" draws one standard error of the group \strong{mean},
+around the mean. The two describe different things — spread of the samples
+versus precision of the centre — and the plot title records which was used.}
 
 \item{fill_alpha}{A numeric value between 0 and 1 (default 0.2).
 Controls the transparency of the polygon fill under the star plot.}
 
 \item{log_scale}{A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.}
 
-\item{plot_order}{A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.}
+\item{plot_order}{A character vector for custom ordering of the sample variable,
+"hclust" for complete-linkage clustering on Bray-Curtis distances between the
+group mean abundances, or NULL (default) for alphabetical.}
 
 \item{base_colors}{Optional. A character vector of base colors to use for hclust coloring.}
 }
@@ -57,6 +62,18 @@ A ggplot object representing the star plot.
 This function generates a star (radar) plot showing the relative abundance
 of three specified taxa plus an "Other" category, faceted by a sample variable.
 }
+\section{Interpreting the plot}{
+
+The abundances are compositional: relative abundances within a sample sum to
+1, so the spokes are not independent — a rise in one taxon mechanically
+depresses the others, and the pooled "Other" wedge is usually the largest
+single value. Group values are the mean (or median) of per-sample relative
+abundances, which is not the same as the relative abundance of pooled counts.
+The area enclosed by a polygon depends on the order of the spokes and is not
+an interpretable quantity; spokes are ordered by decreasing overall abundance
+with "Other" last.
+}
+
 \examples{
 # ...
 #   plot_taxa_star(

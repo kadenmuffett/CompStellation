@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_ordi_star.R
 \name{plot_ordi_star}
 \alias{plot_ordi_star}
-\title{Plot a Star Plot of Mean PCoA Position for Groups}
+\title{Plot a Star Plot of Group Position Across Several Ordination Axes}
 \usage{
 plot_ordi_star(
   physeq,
@@ -16,7 +16,8 @@ plot_ordi_star(
   ord = NULL,
   plot_order = NULL,
   n_axes = 5,
-  base_colors = NULL
+  base_colors = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -27,13 +28,19 @@ to use for grouping samples (e.g., "location", "treatment").}
 
 \item{colors_all}{Optional. A character vector of colors, or "hclust" for automatic clustering colors.}
 
-\item{method}{A character string specifying the ordination method (default "PCoA").}
+\item{method}{A character string specifying the ordination method (default "PCoA").
+One of "PCoA", "MDS", "NMDS", "DPCoA", "DCA", "CCA", "RDA" or "CAP".
+Constrained methods ("CCA", "RDA", "CAP") need a formula, so they must be
+fitted separately and passed via \code{ord}.}
 
 \item{view_type}{A character string, either "together" (default) or "separate".
 Determines whether groups are plotted on the same plot or faceted.}
 
 \item{error_bar}{A character string, one of "IQR" (default), "SE", or "none".
-Determines the type of error bars to display.}
+"IQR" draws the interquartile range of the samples in the group, around the
+group \strong{median}; "SE" draws one standard error of the group \strong{mean},
+around the mean. The two describe different things — spread of the samples
+versus precision of the centre — and the plot title records which was used.}
 
 \item{fill_alpha}{A numeric value between 0 and 1 (default 0.2).
 Controls the transparency of the polygon fill under the star plot.}
@@ -42,29 +49,54 @@ Controls the transparency of the polygon fill under the star plot.}
 
 \item{ord}{An optional existing ordination object (e.g., from \code{phyloseq::ordinate()}). If provided, ordination is skipped.}
 
-\item{plot_order}{A character vector for custom ordering of the sample variable, "hclust" for Ward's clustering based on Euclidean distance, or NULL (default) for alphabetical.}
+\item{plot_order}{A character vector for custom ordering of the sample variable,
+"hclust" for complete-linkage clustering on Euclidean distances between the
+group centres, or NULL (default) for alphabetical.}
 
 \item{n_axes}{Number of axes to plot.}
 
 \item{base_colors}{Optional. A character vector of base colors to use for hclust coloring.}
+
+\item{verbose}{Logical. If TRUE (default), report progress and the
+conventions used for the axis percentages.}
 }
 \value{
-A ggplot object representing the star plot of PCoA centroids.
+A ggplot object representing the star plot of group ordination centres.
 }
 \description{
-This function calculates dissimilarity, performs PCoA, and plots the
-mean position of sample groups along the first 5 PCoA axes using a star (radar) plot.
+Runs an ordination (PCoA by default) on a beta-diversity distance matrix and
+summarises each group's position by plotting its centre on the first
+\code{n_axes} axes as the spokes of a star (radar) plot. This lets several axes be
+compared at once, rather than the two a conventional ordination scatterplot
+shows.
 }
+\details{
+Individual samples are not drawn, and the plot carries no taxonomic
+information. For ordination position alongside taxonomic composition see
+\code{\link[=plot_ordi_star_iris]{plot_ordi_star_iris()}}.
+}
+\section{Interpreting the plot}{
+
+The radial axis is \strong{offset}. Ordination scores are negative as well as
+positive, so every axis is shifted by a single constant to make the values
+plottable on a radius. Radii are therefore not proportional to the scores and
+are not comparable between axes; the tick labels show the original,
+unshifted values. The area enclosed by a polygon depends on the order of the
+spokes and is not an interpretable quantity. The plot is descriptive: it does
+not test whether groups differ, so pair it with an appropriate test such as
+\code{\link[vegan:adonis2]{vegan::adonis2()}} on the same distance matrix.
+}
+
 \examples{
-# ...
-#   plot_ordi_star(
-#     physeq = gp_subset,
-#     sample_var = "SampleType",
-#     colors_all = c(...),
-#     view_type = "together",
-#     error_bar = "SE",
-#     fill_alpha = 0.2,
-#     distance = "bray"
-#    )
-#
+# data(GlobalPatterns)
+# gp <- phyloseq::subset_samples(
+#   GlobalPatterns, SampleType \%in\% c("Feces", "Ocean", "Soil")
+# )
+# plot_ordi_star(
+#   physeq = gp,
+#   sample_var = "SampleType",
+#   distance = "bray",
+#   view_type = "together",
+#   error_bar = "SE"
+# )
 }

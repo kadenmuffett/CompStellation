@@ -58,18 +58,19 @@ print(taxa_plot)
 
 ### 2. `plot_ordi_star()`
 
-Ordination is a cornerstone of microbiome analysis. `plot_ordi_star` performs Principal Coordinate Analysis (PCoA) on distance matrices (like Bray-Curtis) and replaces standard points with star plots representing the actual taxonomic composition of each sample in the ordination space.
+Ordination is a cornerstone of microbiome analysis, but a conventional scatterplot shows only two axes at a time. `plot_ordi_star` performs Principal Coordinate Analysis (PCoA) on a distance matrix (like Bray-Curtis) and summarises each group's position by plotting its centre on the first five axes as the spokes of a star plot, so all five can be compared at once.
+
+Individual samples are not drawn, and this plot carries no taxonomic information — for ordination position alongside taxonomic composition, see `plot_ordi_star_iris()` below.
 
 ```{r pcoa-star, eval=FALSE}
-# Create PCoA plot with embedded taxa abundance star plots
+# One panel per group
 plot_ordi_star(
     physeq = gp,
     sample_var = "SampleType",
     distance = "bray",
     view_type = "separate"
 )
-# Create PCoA plot with embedded taxa abundance star plots
-# Samples are grouped by SampleType but displayed together
+# The same summary with all groups overlaid on one radar
 pcoa_plot <- plot_ordi_star(
     physeq = gp,
     sample_var = "SampleType",
@@ -79,12 +80,36 @@ pcoa_plot <- plot_ordi_star(
 print(pcoa_plot)
 ```
 
+A few things to keep in mind when reading these:
+
+- The radial axis is **offset**. Ordination scores are negative as well as positive, so every axis is shifted by a constant to make the values plottable on a radius. Radii are therefore not proportional to the scores and are not comparable between axes; the tick labels show the original, unshifted values.
+- The **area** of a polygon depends on the order of the spokes, so it changes if the axes are reordered even though no value has changed. Compare spoke by spoke.
+- `error_bar = "IQR"` draws the interquartile range of the samples around the group **median**; `error_bar = "SE"` draws one standard error around the group **mean**. They describe different things — spread versus precision — and the title records which was used.
+- The plot is **descriptive**. It does not test whether the groups differ; pair it with something like `vegan::adonis2()` on the same distance matrix before making that claim.
+
+### 2b. `plot_ordi_star_iris()` *(experimental)*
+
+This places the same radar at the centre of a circular stacked bar chart, where each segment of the outer ring is one sample's taxonomic composition. The centre and the ring carry different units — ordination score and relative abundance — so read each against its own scale.
+
+```{r pcoa-iris, eval=FALSE}
+plot_ordi_star_iris(
+    physeq = gp,
+    sample_var = "SampleType",
+    taxa_rank = "Phylum",
+    distance = "bray",
+    view_type = "separate"
+)
+```
+
 
 ### 3. `coreselect()`
 
-`coreselect` allows you to subset your phyloseq object by comparing the core microbiome across 2 to 7 groups. It produces a clear presence/absence heatmap to compare which taxa meet your core definitions in each sample type.
-Using this requires groups that have substantial overlap in taxa composition, and where the core taxa exclusive to one group are an area of interest. 
-Let's make sure that we have groups that have substantial overlap in taxa composition, and where the core taxa exclusive to one group. 
+`coreselect` compares the core microbiome across groups (it warns above 7, where the plot gets cluttered). It produces a presence/absence dot plot showing which taxa meet your core definition in each sample type.
+
+This needs groups with substantial overlap in taxonomic composition, and where the taxa exclusive to one group's core are of interest. `GlobalPatterns` does not have that structure, so the chunk below simulates a small dataset that does.
+
+Note on the threshold: `percent_samples` accepts either a proportion in (0, 1] or a percentage in (1, 100], and reports which reading it used. A bare `1` means 100%, not 1% — pass `0.01` if you want 1%.
+
 ```{r reproduction_data, eval=FALSE}
 set.seed(001)
 n_samples_per_group <- 20
@@ -185,12 +210,16 @@ physeq <- phyloseq(
 core_res <- coreselect(
     physeq = physeq,
     group_var = "Group",
-    percent_samples = 80, # 50% prevalence
+    percent_samples = 80, # 80% prevalence; 0.8 would mean the same
     abundance_threshold = 0
 )
 
 # Render the presence/absence plot
 print(core_res)
+
+# The core memberships come back with the plot, so they can be fed
+# straight into plot_taxa_star() rather than read off the y-axis
+attr(core_res, "core_list")
 ```
 ### 4. `plot_core_matrix()`
 
@@ -201,11 +230,42 @@ To compare what taxa are uniquely "core" to different groups, `plot_core_matrix`
 coreplot <- plot_core_matrix(
     physeq = physeq,
     group_var = "Group",
-    percent_samples = 0.8, # don't worry. 0.8 is 80%
+    percent_samples = 0.8, # a proportion: 80%
     abundance_threshold = 0,
     taxa_rank = "OTU",
     samplecolumn = "SampleID",
     log_scale = TRUE
 )
 print(coreplot)
+
+# "Unique" is a hard set difference, so check how close each call was:
+# these are the prevalences of every taxon in every group
+attr(coreplot, "unique_core")
+attr(coreplot, "prevalence")
 ```
+
+### 5. `plot_concordant_core()`
+
+The complement of `plot_core_matrix()`: instead of the taxa exclusive to one group's core, the taxa shared by *every* evaluated group's core.
+
+```{r concordant-core, eval=FALSE}
+concordant <- plot_concordant_core(
+    physeq = physeq,
+    group_var = "Group",
+    percent_samples = 0.8,
+    abundance_threshold = 0,
+    taxa_rank = "OTU",
+    samplecolumn = "SampleID"
+)
+print(concordant)
+attr(concordant, "concordant_core")
+```
+
+## A note on sequencing depth
+
+By default the core functions test presence on the abundances as supplied
+(`abundance_type = "counts"`). If library sizes are uneven, a taxon registers as
+present more often in deeply sequenced samples, so the core partly measures
+sequencing effort rather than biology — the functions warn when library sizes
+vary more than tenfold. Rarefying beforehand, or passing
+`abundance_type = "relative"` with a non-zero `abundance_threshold`, avoids this.

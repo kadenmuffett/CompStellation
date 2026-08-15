@@ -9,10 +9,12 @@ plot_core_matrix(
   group_var,
   percent_samples,
   abundance_threshold = 0,
+  abundance_type = c("counts", "relative"),
   taxa_rank,
   samplecolumn,
   log_scale = FALSE,
   group_subset = NULL,
+  verbose = TRUE,
   ...
 )
 }
@@ -21,9 +23,15 @@ plot_core_matrix(
 
 \item{group_var}{A character string. The name of the column to use for grouping.}
 
-\item{percent_samples}{A numeric value for prevalence threshold (0-1).}
+\item{percent_samples}{The proportion of samples within a group that a taxon
+must be present in to be considered "core". Given either as a proportion in
+(0, 1] or as a percentage in (1, 100]; the interpretation chosen is
+reported, because a bare \code{1} means 100\%, not 1\%.}
 
-\item{abundance_threshold}{A numeric value for abundance threshold.}
+\item{abundance_threshold}{A numeric value (default 0). The abundance a taxon
+must \strong{exceed} in a sample for that sample to count as present.}
+
+\item{abundance_type}{Either "counts" (default) or "relative"; see \code{\link[=coreselect]{coreselect()}}.}
 
 \item{taxa_rank}{A character string. The taxonomic rank to use (e.g., "Genus").}
 
@@ -33,10 +41,15 @@ plot_core_matrix(
 
 \item{group_subset}{A character vector specifying which groups to include (if NULL, all are used).}
 
+\item{verbose}{Logical. If TRUE (default), report the resolved thresholds and
+the size of each group's core.}
+
 \item{...}{Additional arguments, e.g. "colors_all" passed to \code{plot_taxa_star}.}
 }
 \value{
-A patchwork object containing the matrix of plots.
+A patchwork object containing the matrix of plots, with the unique
+core memberships attached as the "unique_core" attribute and the per-group
+prevalence of those taxa as the "prevalence" attribute.
 }
 \description{
 This function identifies the "unique core" taxa for each group (present in that group
@@ -44,7 +57,16 @@ but not in the core of any others) and generates a matrix of star plots.
 Each column of the matrix corresponds to the unique core of a specific group.
 Each row corresponds to a sample type (from the group variable).
 }
+\section{A caution about thresholds}{
+
+The unique core is a hard set difference, so a taxon at 0.849 prevalence in
+one group and 0.851 in another is declared unique to the second. The
+prevalence of every unique-core taxon in every group is returned as the
+"prevalence" attribute of the result so the margin can be checked. See
+\code{\link[=coreselect]{coreselect()}} for the caution about sequencing depth, which applies here too.
+}
+
 \examples{
-# plot_core_matrix(physeq, "Treatment", percent_samples = 0.5, 
+# plot_core_matrix(physeq, "Treatment", percent_samples = 0.5,
 #                  taxa_rank = "Genus", samplecolumn = "SampleID")
 }
