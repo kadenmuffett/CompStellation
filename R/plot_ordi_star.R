@@ -142,7 +142,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     tidyr::pivot_longer(cols = tidyselect::all_of(axis_labels), names_to = "Axis", values_to = "Value")
 
   pcoa_stats <- pcoa_long_raw %>%
-    group_by(!!sym(sample_var), Axis) %>%
+    group_by(!!rlang::sym(sample_var), Axis) %>%
     summarise(
       N_samples = sum(!is.na(Value)),
       Mean_Position = mean(Value, na.rm = TRUE),
@@ -183,7 +183,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   # arrive sorted alphabetically by label, which stops matching the axis numbers
   # at ten or more axes ("Axis 10" sorts before "Axis 2").
   pcoa_stats$Axis <- factor(pcoa_stats$Axis, levels = axis_labels)
-  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!sym(sample_var), Axis)
+  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!rlang::sym(sample_var), Axis)
 
   # --- 3b. Plot Ordering ---
   # Ordination scores are Euclidean by construction, and are signed. Bray-Curtis
@@ -191,13 +191,13 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   # here; Euclidean distance is, and it is unaffected by the radial offset.
   group_centres <- function() {
     pcoa_stats %>%
-      dplyr::select(!!sym(sample_var), Axis, Center_Position) %>%
+      dplyr::select(!!rlang::sym(sample_var), Axis, Center_Position) %>%
       tidyr::pivot_wider(names_from = Axis, values_from = Center_Position, values_fill = list(Center_Position = 0))
   }
 
   cluster_groups <- function(wide_df) {
     dist_mat <- stats::dist(
-      as.matrix(wide_df %>% dplyr::select(-!!sym(sample_var))),
+      as.matrix(wide_df %>% dplyr::select(-!!rlang::sym(sample_var))),
       method = "euclidean"
     )
     hc <- stats::hclust(dist_mat, method = "complete")
@@ -260,8 +260,8 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   )
 
   star_plot <- ggplot(pcoa_stats, aes(
-    x = Axis, y = Center_Position, group = !!sym(sample_var),
-    color = !!sym(sample_var), fill = !!sym(sample_var)
+    x = Axis, y = Center_Position, group = !!rlang::sym(sample_var),
+    color = !!rlang::sym(sample_var), fill = !!rlang::sym(sample_var)
   )) +
     geom_polygon(aes(), linewidth = 0.8, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +

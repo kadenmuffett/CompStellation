@@ -132,7 +132,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   pcoa_stats <- pcoa_df_shifted %>%
     tidyr::pivot_longer(cols = tidyselect::all_of(axis_labels), names_to = "Axis", values_to = "Value") %>%
-    dplyr::group_by(!!dplyr::sym(sample_var), Axis) %>%
+    dplyr::group_by(!!rlang::sym(sample_var), Axis) %>%
     dplyr::summarise(
       N_samples = sum(!is.na(Value)),
       Mean_Position = mean(Value, na.rm = TRUE),
@@ -168,7 +168,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   # in row order, so a factor whose levels disagree with the row order draws a
   # self-crossing shape.
   pcoa_stats$Axis <- factor(pcoa_stats$Axis, levels = axis_labels)
-  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!dplyr::sym(sample_var), Axis)
+  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!rlang::sym(sample_var), Axis)
   pcoa_stats$Axis_numeric <- as.numeric(pcoa_stats$Axis)
 
   # --- 3. Taxonomic Aggregation (Iris Plot Data) ---
@@ -183,11 +183,11 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   # Determine Top Taxa overall in the object
   top_taxa <- df_tax %>%
-    dplyr::group_by(!!dplyr::sym(taxa_rank)) %>%
+    dplyr::group_by(!!rlang::sym(taxa_rank)) %>%
     dplyr::summarise(TotalAbundance = sum(Abundance, na.rm = TRUE)) %>%
     dplyr::arrange(dplyr::desc(TotalAbundance)) %>%
     dplyr::slice_head(n = n_taxa) %>%
-    dplyr::pull(!!dplyr::sym(taxa_rank)) %>%
+    dplyr::pull(!!rlang::sym(taxa_rank)) %>%
     as.character()
 
   df_tax <- df_tax %>%
@@ -195,7 +195,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   # Summarize by sample and new Taxa_Group
   df_tax_samples <- df_tax %>%
-    dplyr::group_by(Sample, !!dplyr::sym(sample_var), Taxa_Group) %>%
+    dplyr::group_by(Sample, !!rlang::sym(sample_var), Taxa_Group) %>%
     dplyr::summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop")
 
   # Stack the named taxa in abundance order with the pooled wedge outermost,
@@ -206,8 +206,8 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   total_circumference <- n_axes
 
   df_tax_pos <- df_tax_samples %>%
-    dplyr::distinct(!!dplyr::sym(sample_var), Sample) %>%
-    dplyr::group_by(!!dplyr::sym(sample_var)) %>%
+    dplyr::distinct(!!rlang::sym(sample_var), Sample) %>%
+    dplyr::group_by(!!rlang::sym(sample_var)) %>%
     dplyr::arrange(Sample, .by_group = TRUE) %>%
     dplyr::mutate(
       N_ring_samples = dplyr::n(),
@@ -233,7 +233,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   iris_df <- df_tax_samples %>%
     dplyr::left_join(df_tax_pos %>% dplyr::select(Sample, x_pos, width), by = "Sample") %>%
-    dplyr::group_by(!!dplyr::sym(sample_var), Sample) %>%
+    dplyr::group_by(!!rlang::sym(sample_var), Sample) %>%
     dplyr::arrange(Taxa_Group, .by_group = TRUE) %>%
     dplyr::mutate(
       cum_abundance = cumsum(Abundance),
@@ -293,13 +293,13 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   p <- ggplot2::ggplot() +
     # Layer 1: Ordination Star Polygon
-    ggplot2::geom_polygon(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, y = Center_Position, group = !!dplyr::sym(sample_var), fill = !!dplyr::sym(sample_var), color = !!dplyr::sym(sample_var)), linewidth = 0.8, alpha = fill_alpha)
+    ggplot2::geom_polygon(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, y = Center_Position, group = !!rlang::sym(sample_var), fill = !!rlang::sym(sample_var), color = !!rlang::sym(sample_var)), linewidth = 0.8, alpha = fill_alpha)
 
   # Error bars for the central star
   if (error_bar == "IQR") {
-    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = Q25_Position, ymax = Q75_Position, color = !!dplyr::sym(sample_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
+    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = Q25_Position, ymax = Q75_Position, color = !!rlang::sym(sample_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
   } else if (error_bar == "SE") {
-    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = SE_Min, ymax = SE_Max, color = !!dplyr::sym(sample_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
+    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = SE_Min, ymax = SE_Max, color = !!rlang::sym(sample_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
   }
 
   # Set scales for Layer 1

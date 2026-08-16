@@ -176,11 +176,11 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   if (is.null(taxa_names)) {
     # Calculate total abundance for each taxon at the specified rank
     top_taxa <- df %>%
-      group_by(!!sym(taxa_rank)) %>%
+      group_by(!!rlang::sym(taxa_rank)) %>%
       summarise(TotalAbundance = sum(Abundance)) %>%
       arrange(desc(TotalAbundance)) %>%
       slice_head(n = 4) %>%
-      pull(!!sym(taxa_rank)) %>%
+      pull(!!rlang::sym(taxa_rank)) %>%
       as.character()
 
     taxa_names <- top_taxa
@@ -194,13 +194,13 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     # Use the taxa_rank column to mutate the new variable
     mutate(Taxa_Group = if_else(get(taxa_rank) %in% taxa_names, as.character(get(taxa_rank)), "Other")) %>%
     # Group by the specified sample variable and the new Taxa_Group
-    group_by(!!sym(sample_var), !!sym(samplecolumn), Taxa_Group) %>%
+    group_by(!!rlang::sym(sample_var), !!rlang::sym(samplecolumn), Taxa_Group) %>%
     # Calculate the mean abundance for each group
     summarise(sum_Abundance = sum(Abundance), .groups = "drop")
 
   df_grouped_2 <- df_grouped %>%
     # Group by the specified sample variable and the new Taxa_Group
-    group_by(!!sym(sample_var), Taxa_Group) %>%
+    group_by(!!rlang::sym(sample_var), Taxa_Group) %>%
     # Calculate the centre and spread for each group
     summarise(
       N_samples = dplyr::n(),
@@ -254,17 +254,17 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   # factor levels alone re-labels the spokes without re-tracing the shape, so the
   # polygon crosses over itself. The rows must be sorted to match the levels.
   df_grouped_2 <- df_grouped_2 %>%
-    dplyr::arrange(!!sym(sample_var), Taxa_Group)
+    dplyr::arrange(!!rlang::sym(sample_var), Taxa_Group)
 
   # --- 3b. Plot Ordering ---
   # Bray-Curtis is appropriate here: the values being clustered are non-negative
   # relative abundances. (It would not be appropriate on ordination scores.)
   cluster_groups <- function() {
     wide_df <- df_grouped_2 %>%
-      dplyr::select(!!sym(sample_var), Taxa_Group, Center_Abundance) %>%
+      dplyr::select(!!rlang::sym(sample_var), Taxa_Group, Center_Abundance) %>%
       tidyr::pivot_wider(names_from = Taxa_Group, values_from = Center_Abundance, values_fill = list(Center_Abundance = 0))
 
-    dist_m <- vegan::vegdist(wide_df %>% dplyr::select(-!!sym(sample_var)), method = "bray")
+    dist_m <- vegan::vegdist(wide_df %>% dplyr::select(-!!rlang::sym(sample_var)), method = "bray")
     hc_res <- stats::hclust(dist_m, method = "complete")
     hc_res$labels <- as.character(wide_df[[sample_var]])
     hc_res
@@ -324,8 +324,8 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
   # Create the star plot
   star_plot <- ggplot(df_grouped_2, aes(
-    x = Taxa_Group, y = Center_Abundance, group = !!sym(sample_var),
-    fill = !!sym(sample_var), color = !!sym(sample_var)
+    x = Taxa_Group, y = Center_Abundance, group = !!rlang::sym(sample_var),
+    fill = !!rlang::sym(sample_var), color = !!rlang::sym(sample_var)
   )) +
     geom_polygon(aes(), linewidth = 0.8, show.legend = FALSE, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +

@@ -18,6 +18,7 @@ Imports:
     phyloseq,
     patchwork,
     ggnewscale,
+    rlang,
     scales,
     stats,
     tidyr,
