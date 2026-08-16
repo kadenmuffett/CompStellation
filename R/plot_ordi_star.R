@@ -177,8 +177,13 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     }
   }
 
-  # Ensure Axis order is preserved
+  # Ensure Axis order is preserved. The rows must be sorted as well as the
+  # levels set: geom_polygon() joins vertices in row order, so a factor whose
+  # levels disagree with the row order produces a self-crossing shape. The rows
+  # arrive sorted alphabetically by label, which stops matching the axis numbers
+  # at ten or more axes ("Axis 10" sorts before "Axis 2").
   pcoa_stats$Axis <- factor(pcoa_stats$Axis, levels = axis_labels)
+  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!sym(sample_var), Axis)
 
   # --- 3b. Plot Ordering ---
   # Ordination scores are Euclidean by construction, and are signed. Bray-Curtis

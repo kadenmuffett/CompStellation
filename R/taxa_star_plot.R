@@ -250,6 +250,12 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
   df_grouped_2$Taxa_Group <- order_taxa_group(df_grouped_2$Taxa_Group, levels_order = taxa_by_abundance)
 
+  # geom_polygon() joins vertices in ROW order, not in x-axis order. Setting the
+  # factor levels alone re-labels the spokes without re-tracing the shape, so the
+  # polygon crosses over itself. The rows must be sorted to match the levels.
+  df_grouped_2 <- df_grouped_2 %>%
+    dplyr::arrange(!!sym(sample_var), Taxa_Group)
+
   # --- 3b. Plot Ordering ---
   # Bray-Curtis is appropriate here: the values being clustered are non-negative
   # relative abundances. (It would not be appropriate on ordination scores.)

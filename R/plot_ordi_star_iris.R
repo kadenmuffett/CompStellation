@@ -164,7 +164,11 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
     }
   }
 
+  # Sort the rows as well as setting the levels: geom_polygon() joins vertices
+  # in row order, so a factor whose levels disagree with the row order draws a
+  # self-crossing shape.
   pcoa_stats$Axis <- factor(pcoa_stats$Axis, levels = axis_labels)
+  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!dplyr::sym(sample_var), Axis)
   pcoa_stats$Axis_numeric <- as.numeric(pcoa_stats$Axis)
 
   # --- 3. Taxonomic Aggregation (Iris Plot Data) ---
