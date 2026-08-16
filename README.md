@@ -9,6 +9,7 @@ The `CompStellation` package provides unique visualization techniques for microb
 <img width="1315" height="747" alt="image" src="https://github.com/user-attachments/assets/89dd71a7-bb12-43b5-979c-83a2a9a43128" />
 *Mean position on the first five PCoA axes for each sample type in the GlobalPatterns dataset (`plot_ordi_star()`)*
 
+Transparency note! I used Gemini and Claude to help identify and fix inconsistencies in the readme and between subcommands.
 
 ## Installation
 
