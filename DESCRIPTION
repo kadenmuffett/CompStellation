@@ -6,15 +6,14 @@ Authors@R:
 Description: This package is designed to take a dataframe or phyloseq object and generate compositional starplots for microbiome data. This encompassed four key functions: a way to simultaneously compare PCoA positions of groups at up to 5 levels, a way to identify core microbiome overlap among groups, a visualization tool for comparative core microbiota, and a starplot for any taxa.
 License: AGPL-3
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
 biocViews: Microbiome, Metagenomics, Visualization, Sequencing
-Remotes:
-    david-barnett/microViz
 Imports:
     dplyr,
     ggplot2 (>= 3.4.0),
     grDevices,
-    microViz,
+    methods,
     phyloseq,
     patchwork,
     ggnewscale,

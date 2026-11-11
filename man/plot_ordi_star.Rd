@@ -12,12 +12,16 @@ plot_ordi_star(
   view_type = "together",
   error_bar = "IQR",
   fill_alpha = 0.2,
-  distance = NULL,
+  distance = "bray",
   ord = NULL,
   plot_order = NULL,
   n_axes = 5,
   base_colors = NULL,
-  verbose = TRUE
+  verbose = TRUE,
+  show_caption = FALSE,
+  axis_label_pos = c("side", "middle", "none"),
+  font = NULL,
+  label_color = "black"
 )
 }
 \arguments{
@@ -45,7 +49,7 @@ versus precision of the centre — and the plot title records which was used.}
 \item{fill_alpha}{A numeric value between 0 and 1 (default 0.2).
 Controls the transparency of the polygon fill under the star plot.}
 
-\item{distance}{An accepted phyloseq ordination type ("bray" for example). Required if \code{ord} is NULL.}
+\item{distance}{An accepted phyloseq ordination distance metric (default "bray"). Required if \code{ord} is NULL.}
 
 \item{ord}{An optional existing ordination object (e.g., from \code{phyloseq::ordinate()}). If provided, ordination is skipped.}
 
@@ -59,6 +63,19 @@ group centres, or NULL (default) for alphabetical.}
 
 \item{verbose}{Logical. If TRUE (default), report progress and the
 conventions used for the axis percentages.}
+
+\item{show_caption}{Logical. If FALSE (default), omits the explanatory caption below the plot.}
+
+\item{axis_label_pos}{Character. Position of concentric-circle tick labels:
+\code{"side"} (default; along the left margin), \code{"middle"} (at the 12 o'clock
+position on each concentric circle), or \code{"none"} (hidden).}
+
+\item{font}{Optional character string specifying the font family for plot
+text (e.g., \code{"sans"}, \code{"serif"}). If \code{NULL} (default), uses the active
+ggplot2 theme default without overriding font family.}
+
+\item{label_color}{Character string specifying the color for all plot text
+and labels (default \code{"black"}).}
 }
 \value{
 A ggplot object representing the star plot of group ordination centres.
@@ -84,19 +101,20 @@ are not comparable between axes; the tick labels show the original,
 unshifted values. The area enclosed by a polygon depends on the order of the
 spokes and is not an interpretable quantity. The plot is descriptive: it does
 not test whether groups differ, so pair it with an appropriate test such as
-\code{\link[vegan:adonis2]{vegan::adonis2()}} on the same distance matrix.
+\code{\link[vegan:adonis2]{vegan::adonis2()}} on the same distance matrix. By default, the function uses
+Bray-Curtis dissimilarity (\code{distance = "bray"}), which does not account for
+the compositional nature of metagenomic sequencing data; for compositional
+analyses, consider passing an Aitchison or CLR-transformed Euclidean
+ordination object via \code{ord}.
 }
 
 \examples{
-# data(GlobalPatterns)
-# gp <- phyloseq::subset_samples(
-#   GlobalPatterns, SampleType \%in\% c("Feces", "Ocean", "Soil")
-# )
-# plot_ordi_star(
-#   physeq = gp,
-#   sample_var = "SampleType",
-#   distance = "bray",
-#   view_type = "together",
-#   error_bar = "SE"
-# )
+data("cassiopea_ps")
+plot_ordi_star(
+  physeq = cassiopea_ps,
+  sample_var = "Body_cav",
+  distance = "bray",
+  view_type = "together",
+  error_bar = "SE"
+)
 }

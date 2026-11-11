@@ -15,6 +15,9 @@ plot_core_matrix(
   log_scale = FALSE,
   group_subset = NULL,
   verbose = TRUE,
+  axis_label_pos = c("side", "middle", "none"),
+  font = NULL,
+  label_color = "black",
   ...
 )
 }
@@ -44,6 +47,17 @@ must \strong{exceed} in a sample for that sample to count as present.}
 \item{verbose}{Logical. If TRUE (default), report the resolved thresholds and
 the size of each group's core.}
 
+\item{axis_label_pos}{Character. Position of concentric-circle tick labels:
+\code{"side"} (default; along the left margin), \code{"middle"} (at the 12 o'clock
+position on each concentric circle), or \code{"none"} (hidden).}
+
+\item{font}{Optional character string specifying the font family for plot
+text (e.g., \code{"sans"}, \code{"serif"}). If \code{NULL} (default), uses the active
+ggplot2 theme default without overriding font family.}
+
+\item{label_color}{Character string specifying the color for all plot text
+and labels (default \code{"black"}).}
+
 \item{...}{Additional arguments, e.g. "colors_all" passed to \code{plot_taxa_star}.}
 }
 \value{
@@ -67,6 +81,14 @@ prevalence of every unique-core taxon in every group is returned as the
 }
 
 \examples{
-# plot_core_matrix(physeq, "Treatment", percent_samples = 0.5,
-#                  taxa_rank = "Genus", samplecolumn = "SampleID")
+data("cassiopea_ps")
+plot_core_matrix(
+  cassiopea_ps,
+  group_var = "Body_cav",
+  percent_samples = 0.85,
+  taxa_rank = "Family",
+  samplecolumn = "Sample_NAME",
+  group_subset = c("Sub", "WTR"),
+  log_scale = TRUE
+)
 }

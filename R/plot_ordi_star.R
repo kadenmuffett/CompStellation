@@ -18,7 +18,11 @@
 #' unshifted values. The area enclosed by a polygon depends on the order of the
 #' spokes and is not an interpretable quantity. The plot is descriptive: it does
 #' not test whether groups differ, so pair it with an appropriate test such as
-#' [vegan::adonis2()] on the same distance matrix.
+#' [vegan::adonis2()] on the same distance matrix. By default, the function uses
+#' Bray-Curtis dissimilarity (`distance = "bray"`), which does not account for
+#' the compositional nature of metagenomic sequencing data; for compositional
+#' analyses, consider passing an Aitchison or CLR-transformed Euclidean
+#' ordination object via `ord`.
 #'
 #' @param physeq A phyloseq object containing your microbiome data.
 #' @param sample_var A character string. The name of the column in your sample data
@@ -37,7 +41,7 @@
 #'   versus precision of the centre — and the plot title records which was used.
 #' @param fill_alpha A numeric value between 0 and 1 (default 0.2).
 #'   Controls the transparency of the polygon fill under the star plot.
-#' @param distance An accepted phyloseq ordination type ("bray" for example). Required if `ord` is NULL.
+#' @param distance An accepted phyloseq ordination distance metric (default "bray"). Required if `ord` is NULL.
 #' @param ord An optional existing ordination object (e.g., from \code{phyloseq::ordinate()}). If provided, ordination is skipped.
 #' @param plot_order A character vector for custom ordering of the sample variable,
 #'   "hclust" for complete-linkage clustering on Euclidean distances between the
@@ -46,6 +50,15 @@
 #' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
 #' @param verbose Logical. If TRUE (default), report progress and the
 #'   conventions used for the axis percentages.
+#' @param show_caption Logical. If FALSE (default), omits the explanatory caption below the plot.
+#' @param axis_label_pos Character. Position of concentric-circle tick labels:
+#'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
+#'   position on each concentric circle), or `"none"` (hidden).
+#' @param font Optional character string specifying the font family for plot
+#'   text (e.g., `"sans"`, `"serif"`). If `NULL` (default), uses the active
+#'   ggplot2 theme default without overriding font family.
+#' @param label_color Character string specifying the color for all plot text
+#'   and labels (default `"black"`).
 #'
 #' @return A ggplot object representing the star plot of group ordination centres.
 #'
@@ -59,18 +72,15 @@
 #' @export
 #'
 #' @examples
-#' # data(GlobalPatterns)
-#' # gp <- phyloseq::subset_samples(
-#' #   GlobalPatterns, SampleType %in% c("Feces", "Ocean", "Soil")
-#' # )
-#' # plot_ordi_star(
-#' #   physeq = gp,
-#' #   sample_var = "SampleType",
-#' #   distance = "bray",
-#' #   view_type = "together",
-#' #   error_bar = "SE"
-#' # )
-plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = NULL, ord = NULL, plot_order = NULL, n_axes = 5, base_colors = NULL, verbose = TRUE) {
+#' data("cassiopea_ps")
+#' plot_ordi_star(
+#'   physeq = cassiopea_ps,
+#'   sample_var = "Body_cav",
+#'   distance = "bray",
+#'   view_type = "together",
+#'   error_bar = "SE"
+#' )
+plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = "bray", ord = NULL, plot_order = NULL, n_axes = 5, base_colors = NULL, verbose = TRUE, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
   # --- 1. Input Validation ---
   if (!inherits(physeq, "phyloseq")) {
     stop("'physeq' must be a VALID phyloseq object.", call. = FALSE)
@@ -85,6 +95,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
 
   view_type <- match.arg(view_type, c("together", "separate"))
   error_bar <- match.arg(error_bar, c("IQR", "SE", "none"))
+  axis_label_pos <- match.arg(axis_label_pos)
 
   # --- 2. Ordination ---
   method <- match.arg(method, ordi_methods())
@@ -100,6 +111,9 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     }
     if (is.null(distance)) {
       stop("'distance' must be provided for ", method, " when 'ord' is NULL.", call. = FALSE)
+    }
+    if (identical(distance, "bray")) {
+      message("This function defaults to bray curtis. For metagenomic data, consider Aitchison or CLR-transformed Euclidean ordination objects passed to plot_ordi_star() directly.")
     }
 
     if (verbose) message("Calculating dissimilarity and performing ", method, "...")
@@ -253,11 +267,17 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     "none" = ""
   )
 
-  caption_text <- switch(error_bar,
-    "IQR" = "Bars span the interquartile range of samples within each group, around the group median.",
-    "SE" = "Bars span one standard error of the group mean.",
-    "none" = NULL
-  )
+  caption_text <- if (isTRUE(show_caption)) {
+    switch(error_bar,
+      "IQR" = "Bars span the interquartile range of samples within each group, around the group median.",
+      "SE" = "Bars span one standard error of the group mean.",
+      "none" = NULL
+    )
+  } else {
+    NULL
+  }
+
+  label_fn <- function(x) sprintf("%.2f", x - y_offset)
 
   star_plot <- ggplot(pcoa_stats, aes(
     x = Axis, y = Center_Position, group = !!rlang::sym(sample_var),
@@ -267,14 +287,26 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     scale_fill_manual(values = colors_all) +
     scale_color_manual(values = colors_all) +
     # Adjust Y-axis labels to show original values
-    scale_y_continuous(labels = function(x) sprintf("%.2f", x - y_offset), breaks = scales::breaks_pretty(n = 5)) +
+    scale_y_continuous(
+      labels = label_fn,
+      breaks = scales::breaks_pretty(n = 5),
+      expand = expansion(mult = c(0.05, 0.12))
+    ) +
     theme_minimal() +
     theme(
-      text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
-      axis.text.y = element_text(color = "gray50"),
+      text = element_text(color = label_color),
+      axis.text = element_text(color = label_color),
+      axis.text.x = element_text(color = label_color, size = 9),
+      axis.text.y = element_text(color = label_color),
+      axis.title = element_text(color = label_color),
+      plot.title = element_text(color = label_color),
+      strip.text = element_text(color = label_color),
+      legend.text = element_text(color = label_color),
+      legend.title = element_text(color = label_color),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
-      plot.caption = element_text(color = "gray40", hjust = 0, size = 8),
-      plot.margin = margin(15, 15, 15, 15)
+      panel.spacing = grid::unit(3.5, "lines"),
+      plot.caption = element_text(color = label_color, hjust = 0, size = 8),
+      plot.margin = margin(15, 30, 15, 30)
     ) +
     labs(
       title = paste0(center_label, " ", method, " Position (First ", n_axes, " Axes)", title_suffix),
@@ -285,6 +317,10 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
       caption = caption_text
     ) +
     coord_radar(clip = "off") # Uses the function from utils-radar.R
+
+  if (!is.null(font)) {
+    star_plot <- star_plot + theme(text = element_text(family = font, color = label_color))
+  }
 
   # Add Error Bars conditionally
   if (error_bar == "IQR") {
@@ -298,6 +334,14 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   if (view_type == "separate") {
     star_plot <- star_plot + facet_wrap(as.formula(paste("~", sample_var)))
   }
+
+  star_plot <- apply_radial_labels(
+    star_plot,
+    axis_label_pos = axis_label_pos,
+    label_fn = label_fn,
+    font = font,
+    label_color = label_color
+  )
 
   return(star_plot)
 }

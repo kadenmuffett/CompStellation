@@ -16,7 +16,11 @@ plot_taxa_star(
   fill_alpha = 0.2,
   log_scale = FALSE,
   plot_order = NULL,
-  base_colors = NULL
+  base_colors = NULL,
+  show_caption = FALSE,
+  axis_label_pos = c("side", "middle", "none"),
+  font = NULL,
+  label_color = "black"
 )
 }
 \arguments{
@@ -54,6 +58,19 @@ Controls the transparency of the polygon fill under the star plot.}
 group mean abundances, or NULL (default) for alphabetical.}
 
 \item{base_colors}{Optional. A character vector of base colors to use for hclust coloring.}
+
+\item{show_caption}{Logical. If FALSE (default), omits the explanatory caption below the plot.}
+
+\item{axis_label_pos}{Character. Position of concentric-circle tick labels:
+\code{"side"} (default; along the left margin), \code{"middle"} (at the 12 o'clock
+position on each concentric circle), or \code{"none"} (hidden).}
+
+\item{font}{Optional character string specifying the font family for plot
+text (e.g., \code{"sans"}, \code{"serif"}). If \code{NULL} (default), uses the active
+ggplot2 theme default without overriding font family.}
+
+\item{label_color}{Character string specifying the color for all plot text
+and labels (default \code{"black"}).}
 }
 \value{
 A ggplot object representing the star plot.
@@ -75,25 +92,13 @@ with "Other" last.
 }
 
 \examples{
-# ...
-#   plot_taxa_star(
-#     physeq = gp_subset,
-#     sample_var = "SampleType",
-#     taxa_rank = "Phylum",
-#     # taxa_names = c("Firmicutes", "Bacteroidetes"), # Optional
-#     samplecolumn = "Sample_ID",
-#     view_type = "separate",
-#     error_bar = "SE",
-#     fill_alpha = 0.2,
-#     log_scale = FALSE,
-#     plot_order = NULL
-#    )
-#
-
-# Example with a Data Frame
-# ...
-# plot_taxa_star(
-#   ...
-#   error_bar = "none"
-# )
+data("cassiopea_ps")
+plot_taxa_star(
+  physeq = cassiopea_ps,
+  sample_var = "Body_cav",
+  taxa_rank = "Phylum",
+  samplecolumn = "Sample_NAME",
+  view_type = "separate",
+  error_bar = "SE"
+)
 }

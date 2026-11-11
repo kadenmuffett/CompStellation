@@ -16,66 +16,123 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-The `CompStellation` package provides an easy way to visualize complex microbiome dynamics. It builds on top of `phyloseq`, `microViz`, and `ggplot2` to offer aesthetically pleasing and highly informative "star/radar" plots. These visualizations are particularly useful for seeing differences in microbial composition and relative abundance alongside ordination spaces.
+The `CompStellation` package provides interpretable star (radar) plots for compositional and multidimensional ecological data. Building on `phyloseq` and `ggplot2`, it summarizes multi-taxon relative abundances, group positions across multiple ordination axes, and shared vs. unique core microbiomes across treatment groups or habitats.
 
-## Setup
+## Input Data Formats & Preparing Your Own Data
+
+`CompStellation` functions accept data in two ways:
+
+### 1. A `phyloseq` object (all functions)
+All six exported functions work with `phyloseq` objects from the Bioconductor `phyloseq` package. A `phyloseq` object combines three aligned tables:
+- **`otu_table`**: A numeric matrix of read counts or relative abundances (with taxa as rows or columns).
+- **`tax_table`**: A character matrix mapping each taxon ID (rownames) to taxonomic ranks (`"Kingdom"`, `"Phylum"`, `"Class"`, `"Order"`, `"Family"`, `"Genus"`, `"Species"`). Unclassified or placeholder labels (`NA`, `"unclassified"`, `"g__"`, `"Incertae Sedis"`, etc.) are automatically filled from the nearest classified higher rank when aggregating via `CompStellation`'s internal heuristic.
+- **`sample_data`**: A data frame of sample metadata whose rownames match the sample names in the `otu_table`, containing at least a grouping column (`sample_var` / `group_var`) and a sample identifier column (`samplecolumn`).
+
+To construct a `phyloseq` object from standard R tables:
+
+```{r build-phyloseq, eval=FALSE}
+library(phyloseq)
+
+# counts_mat: numeric matrix (rows = taxa/ASVs, columns = sample IDs)
+# tax_mat:    character matrix (rownames = taxa/ASVs, colnames = taxonomic ranks)
+# meta_df:    data.frame (rownames = sample IDs, with sample ID and grouping columns)
+my_physeq <- phyloseq(
+    otu_table(counts_mat, taxa_are_rows = TRUE),
+    tax_table(as.matrix(tax_mat)),
+    sample_data(meta_df)
+)
+```
+
+### 2. Converting a `vegan`-style `data.frame` (`vegan_to_phyloseq()`) or plotting a wide `data.frame` directly
+For users working with `vegan`-style sample-by-taxon community tables (where rows are samples and columns are taxa), `vegan_to_phyloseq()` converts either a single wide `data.frame` or a separate community matrix + metadata `data.frame` into a `phyloseq` object ready for all `CompStellation` functions. Additionally, `plot_taxa_star()` accepts a wide `data.frame` directly:
+
+```{r df-input, eval=FALSE}
+library(CompStellation)
+
+df_example <- data.frame(
+    SampleID    = paste0("S", 1:6),
+    Habitat     = rep(c("Reef", "Lagoon"), each = 3),
+    Bacteroidia = c(40, 35, 45, 15, 20, 10),
+    Clostridia  = c(30, 25, 20, 50, 45, 55),
+    Gammaprot   = c(20, 30, 25, 25, 25, 20),
+    OtherTaxa   = c(10, 10, 10, 10, 10, 15)
+)
+
+# Convert a vegan-style wide data.frame (or separate community matrix + metadata) to phyloseq
+ps_from_df <- vegan_to_phyloseq(
+    df         = df_example,
+    sample_col = "SampleID",
+    taxa_rank  = "Class"
+)
+
+# Or pass the wide data.frame directly to plot_taxa_star()
+plot_taxa_star(
+    physeq       = df_example,
+    sample_var   = "Habitat",
+    samplecolumn = "SampleID",
+    taxa_rank    = "Class",
+    taxa_names   = c("Bacteroidia", "Clostridia", "Gammaprot")
+)
+```
+
+## Setup & Built-in Datasets
+
+`CompStellation` includes **`cassiopea_ps`**, a 16S rRNA dataset of the upside-down jellyfish (*Cassiopea xamachana*) and its surrounding environment across 8 sites in the Florida Keys (3,000 ASVs across 76 samples, grouped by compartment in `Body_cav`: `Bell`, `GVC` [gastrovascular cavity], `Sub` [benthic substrate], and `WTR` [water column], with sample IDs in `Sample_NAME`).
 
 ```{r setup, eval=FALSE}
 library(CompStellation)
 library(phyloseq)
 library(dplyr)
 library(ggplot2)
-library(microViz)
 
-# For demonstrations, we will use the GlobalPatterns dataset
-data(GlobalPatterns)
-# Filter down to speed up example vignettes
-# Subset to a smaller physeq for demonstration, fix taxa with microViz
-gp <- subset_samples(GlobalPatterns, SampleType %in% c("Feces", "Skin", "Tongue", "Freshwater", "Mock"))
-gp <- gp %>% tax_fix()
-# Only taxa without zero counts remain
-gp <- subset_taxa(gp, taxa_sums(gp) > 0)
+# Load the built-in Cassiopea microbiome dataset
+data("cassiopea_ps")
+cassiopea_ps
 ```
 
 ## Functionality
 
 ### 1. `plot_taxa_star()`
 
-This function creates radar/star plots to visualize the relative abundance of specified taxa (or the top N taxa automatically) across different sample groups.
+`plot_taxa_star()` generates star/radar plots visualizing the relative abundance of specified taxa (or the top 4 most abundant taxa automatically, up to 8) plus an `"Other"` spoke across sample groups.
 
 ```{r taxa-star, eval=FALSE}
-# Plot the top 4 most abundant orders by SampleType
+# Plot the top 4 most abundant orders by compartment (Body_cav)
 taxa_plot <- plot_taxa_star(
-    physeq = gp,
-    sample_var = "SampleType",
-    taxa_rank = "Order",
-    samplecolumn = "X.SampleID",
-    error_bar = "SE",
-    plot_order = "hclust"
+    physeq         = cassiopea_ps,
+    sample_var     = "Body_cav",
+    taxa_rank      = "Order",
+    samplecolumn   = "Sample_NAME",
+    error_bar      = "SE",
+    plot_order     = "hclust",
+    axis_label_pos = "side",   # "side" (default), "middle" (12 o'clock), or "none"
+    font           = NULL,     # optional font family, e.g. "sans" or "serif"
+    label_color    = "black"   # customizable text/label color
 )
 print(taxa_plot)
 ```
 
 ### 2. `plot_ordi_star()`
 
-Ordination is a cornerstone of microbiome analysis, but a conventional scatterplot shows only two axes at a time. `plot_ordi_star` performs Principal Coordinate Analysis (PCoA) on a distance matrix (like Bray-Curtis) and summarises each group's position by plotting its centre on the first five axes as the spokes of a star plot, so all five can be compared at once.
+A conventional ordination scatterplot displays only two axes at a time. `plot_ordi_star()` performs ordination (PCoA on Bray-Curtis dissimilarity by default, or uses a pre-computed ordination passed via `ord`) and summarises each group's position by plotting its centre on the first `n_axes` axes as the spokes of a star plot.
 
 Individual samples are not drawn, and this plot carries no taxonomic information — for ordination position alongside taxonomic composition, see `plot_ordi_star_iris()` below.
 
 ```{r pcoa-star, eval=FALSE}
 # One panel per group
 plot_ordi_star(
-    physeq = gp,
-    sample_var = "SampleType",
-    distance = "bray",
-    view_type = "separate"
+    physeq     = cassiopea_ps,
+    sample_var = "Body_cav",
+    distance   = "bray",
+    view_type  = "separate"
 )
-# The same summary with all groups overlaid on one radar
+
+# All groups overlaid on one radar
 pcoa_plot <- plot_ordi_star(
-    physeq = gp,
-    sample_var = "SampleType",
-    distance = "bray",
-    view_type = "together"
+    physeq     = cassiopea_ps,
+    sample_var = "Body_cav",
+    distance   = "bray",
+    view_type  = "together"
 )
 print(pcoa_plot)
 ```
@@ -86,182 +143,105 @@ A few things to keep in mind when reading these:
 - The **area** of a polygon depends on the order of the spokes, so it changes if the axes are reordered even though no value has changed. Compare spoke by spoke.
 - `error_bar = "IQR"` draws the interquartile range of the samples around the group **median**; `error_bar = "SE"` draws one standard error around the group **mean**. They describe different things — spread versus precision — and the title records which was used.
 - The plot is **descriptive**. It does not test whether the groups differ; pair it with something like `vegan::adonis2()` on the same distance matrix before making that claim.
+- **Distance metric and compositionality.** `plot_ordi_star()` defaults to Bray-Curtis dissimilarity (`distance = "bray"`), which does not account for the compositional nature of metagenomic sequencing data. For compositional beta-diversity analyses, consider passing an Aitchison or CLR-transformed Euclidean ordination object directly via the `ord` argument.
 
 ### 2b. `plot_ordi_star_iris()` *(experimental)*
 
-This places the same radar at the centre of a circular stacked bar chart, where each segment of the outer ring is one sample's taxonomic composition. The centre and the ring carry different units — ordination score and relative abundance — so read each against its own scale.
+This places the `plot_ordi_star()` radar at the centre of a circular stacked bar chart, where each segment of the outer ring is one sample's taxonomic composition. The centre and the ring carry different units — ordination score and relative abundance — so read each against its own scale.
 
 ```{r pcoa-iris, eval=FALSE}
 plot_ordi_star_iris(
-    physeq = gp,
-    sample_var = "SampleType",
-    taxa_rank = "Phylum",
-    distance = "bray",
-    view_type = "separate"
+    physeq     = cassiopea_ps,
+    sample_var = "Body_cav",
+    taxa_rank  = "Phylum",
+    distance   = "bray",
+    view_type  = "separate"
 )
 ```
-
 
 ### 3. `coreselect()`
 
-`coreselect` compares the core microbiome across groups (it warns above 7, where the plot gets cluttered). It produces a presence/absence dot plot showing which taxa meet your core definition in each sample type.
-
-This needs groups with substantial overlap in taxonomic composition, and where the taxa exclusive to one group's core are of interest. `GlobalPatterns` does not have that structure, so the chunk below simulates a small dataset that does.
+`coreselect()` compares the core microbiome across groups (it warns above 7 groups, where the plot gets cluttered). It produces a presence/absence dot plot showing which taxa meet your core definition in each sample group, and attaches the core taxon lists as `attr(result, "core_list")`.
 
 Note on the threshold: `percent_samples` accepts either a proportion in (0, 1] or a percentage in (1, 100], and reports which reading it used. A bare `1` means 100%, not 1% — pass `0.01` if you want 1%.
 
-```{r reproduction_data, eval=FALSE}
-set.seed(001)
-n_samples_per_group <- 20
-groups <- c("Control", "TreatmentA", "TreatmentB")
-n_samples <- n_samples_per_group * length(groups)
-n_taxa <- 25
-
-# Create Taxa Names
-taxa_names <- paste0("Taxon_", LETTERS[1:n_taxa])
-
-# OTU Table
-# Initialize with zeros
-otu_mat <- matrix(0, nrow = n_taxa, ncol = n_samples)
-rownames(otu_mat) <- taxa_names
-colnames(otu_mat) <- paste0("Sample", 1:n_samples)
-taxa_TABLE <- as.matrix(taxa_names)
-rownames(taxa_TABLE) <- taxa_names
-taxa_tables <- tax_table(taxa_TABLE)
-# Assign groups
-group_vec <- rep(groups, each = n_samples_per_group)
-meta_df <- data.frame(
-    SampleID = colnames(otu_mat),
-    Group = group_vec,
-    row.names = colnames(otu_mat)
-)
-
-# Populate OTU table with patterns
-
-for (isValid in 1:n_samples) {
-    grp <- group_vec[isValid]
-
-    # Taxon A/M/W: Core in Control
-    if (grp == "Control") {
-        otu_mat["Taxon_A", isValid] <- 100
-        otu_mat["Taxon_M", isValid] <- 10
-        otu_mat["Taxon_W", isValid] <- 100
-    }
-
-    # Taxon A/M: Conditional presence in Treatments (40% chance)
-    if (grp %in% c("TreatmentB", "TreatmentA") && runif(1) < 0.4) {
-        otu_mat[c("Taxon_A", "Taxon_M"), isValid] <- 30
-    }
-
-    # Taxon B: Core in Control and TreatmentA
-    if (grp %in% c("Control", "TreatmentA") && runif(1) < 0.8) {
-        otu_mat["Taxon_B", isValid] <- 50
-        otu_mat["Taxon_N", isValid] <- 100
-        otu_mat["Taxon_O", isValid] <- 10
-    }
-
-    # Taxon B: Conditional presence in TreatmentB (30% chance)
-    if (grp == "TreatmentB" && runif(1) < 0.3) {
-        otu_mat[c("Taxon_B", "Taxon_N", "Taxon_O"), isValid] <- 30
-    }
-
-    # Taxon C: Core in TreatmentA
-    if (grp == "TreatmentA") {
-        otu_mat["Taxon_C", isValid] <- 200
-        otu_mat["Taxon_P", isValid] <- 3
-        otu_mat["Taxon_Q", isValid] <- 70
-    }
-    if (grp == "TreatmentB" && runif(1) < 0.3) {
-        otu_mat["Taxon_C", isValid] <- 200
-        otu_mat["Taxon_P", isValid] <- 3
-        otu_mat["Taxon_Q", isValid] <- 70
-    }
-    # Taxon C: Conditional presence in TreatmentB (30% chance)
-    if (grp == "TreatmentB" && runif(1) < 0.3) {
-        otu_mat[c("Taxon_C", "Taxon_P", "Taxon_Q"), isValid] <- 20
-    }
-
-    # Taxon D: Core in TreatmentB
-    if (grp == "TreatmentB") {
-        otu_mat["Taxon_D", isValid] <- 500
-        otu_mat["Taxon_R", isValid] <- 70
-    }
-    if (grp == "TreatmentA" && runif(1) < 0.2) {
-        otu_mat["Taxon_D", isValid] <- 500
-        otu_mat["Taxon_R", isValid] <- 70
-    }
-    # Taxon E-L: Random presence (20-70%) across all samples
-    if (runif(1) < 0.2) otu_mat[c("Taxon_E", "Taxon_S", "Taxon_T", "Taxon_U", "Taxon_V"), isValid] <- 30
-    if (runif(1) < 0.3) otu_mat["Taxon_F", isValid] <- 10
-    if (runif(1) < 0.4) otu_mat["Taxon_G", isValid] <- 10
-    if (runif(1) < 0.6) otu_mat["Taxon_H", isValid] <- 10
-    if (runif(1) < 0.7) otu_mat["Taxon_I", isValid] <- 10
-    if (runif(1) < 0.5) otu_mat["Taxon_J", isValid] <- 10
-    if (runif(1) < 0.5) otu_mat["Taxon_K", isValid] <- 10
-    if (runif(1) < 0.5) otu_mat["Taxon_L", isValid] <- 10
-}
-physeq <- phyloseq(
-    otu_table(otu_mat, taxa_are_rows = TRUE), tax_table(taxa_tables),
-    sample_data(meta_df)
-)
-```
 ```{r coreselect, eval=FALSE}
-# Output a core comparison presence-absence plot
+# Compare core ASVs across Cassiopea compartments at 75% prevalence (> 0.5% relative abundance)
 core_res <- coreselect(
-    physeq = physeq,
-    group_var = "Group",
-    percent_samples = 80, # 80% prevalence; 0.8 would mean the same
-    abundance_threshold = 0
+    physeq              = cassiopea_ps,
+    group_var           = "Body_cav",
+    percent_samples     = 0.75,
+    abundance_threshold = 0.005,
+    abundance_type      = "relative"
 )
 
 # Render the presence/absence plot
 print(core_res)
 
-# The core memberships come back with the plot, so they can be fed
-# straight into plot_taxa_star() rather than read off the y-axis
-attr(core_res, "core_list")
+# The core memberships come back with the plot, so they can be inspected
+# or fed straight into plot_taxa_star()
+lapply(attr(core_res, "core_list"), head)
 ```
+
 ### 4. `plot_core_matrix()`
 
-To compare what taxa are uniquely "core" to different groups, `plot_core_matrix` creates a faceted matrix of star plots. Each quadrant isolates the core taxa present _exclusively_ in one group's core compared to the others.
+To compare what taxa are uniquely "core" to different groups, `plot_core_matrix()` creates a faceted matrix of star plots. Each column isolates the core taxa present *exclusively* in one group's core compared to the others (keeping up to the 3 most abundant unique core taxa), and each row shows the abundance of those taxa in every evaluated group.
 
 ```{r core-matrix, eval=FALSE}
-# Compare unique core taxa between groups
+# Compare unique core families between substrate (Sub) and water (WTR) at 85% prevalence
 coreplot <- plot_core_matrix(
-    physeq = physeq,
-    group_var = "Group",
-    percent_samples = 0.8, # a proportion: 80%
+    physeq              = cassiopea_ps,
+    group_var           = "Body_cav",
+    percent_samples     = 0.85,
     abundance_threshold = 0,
-    taxa_rank = "OTU",
-    samplecolumn = "SampleID",
-    log_scale = TRUE
+    taxa_rank           = "Family",
+    samplecolumn        = "Sample_NAME",
+    group_subset        = c("Sub", "WTR"),
+    log_scale           = TRUE
 )
 print(coreplot)
 
 # "Unique" is a hard set difference, so check how close each call was:
-# these are the prevalences of every taxon in every group
+# these attributes hold the unique core memberships and per-group prevalences
 attr(coreplot, "unique_core")
-attr(coreplot, "prevalence")
+lapply(attr(coreplot, "prevalence"), head)
 ```
 
 ### 5. `plot_concordant_core()`
 
-The complement of `plot_core_matrix()`: instead of the taxa exclusive to one group's core, the taxa shared by *every* evaluated group's core.
+The complement of `plot_core_matrix()`: instead of the taxa exclusive to one group's core, `plot_concordant_core()` identifies the taxa shared by *every* evaluated group's core (keeping up to the 3 most abundant shared core taxa) and plots their relative abundance as a star plot.
 
 ```{r concordant-core, eval=FALSE}
+# Compare the shared core families across jellyfish Bell and GVC compartments
 concordant <- plot_concordant_core(
-    physeq = physeq,
-    group_var = "Group",
-    percent_samples = 0.8,
+    physeq              = cassiopea_ps,
+    group_var           = "Body_cav",
+    percent_samples     = 0.5,
     abundance_threshold = 0,
-    taxa_rank = "OTU",
-    samplecolumn = "SampleID"
+    taxa_rank           = "Family",
+    samplecolumn        = "Sample_NAME",
+    group_subset        = c("Bell", "GVC")
 )
 print(concordant)
 attr(concordant, "concordant_core")
 ```
 
-## A note on sequencing depth
+## Exporting Figures (`ggsave()`)
+
+To save figures with consistent typography and spacing, use `ggplot2::ggsave()` with explicit dimensions, `dpi = 300`, and `bg = "white"`:
+
+```{r ggsave-export, eval=FALSE}
+# Faceted star plots (plot_taxa_star, plot_ordi_star with view_type = "separate", plot_concordant_core)
+ggsave("cassiopea_taxa_star.png", plot = taxa_plot, width = 9, height = 5, units = "in", dpi = 300, bg = "white")
+
+# Overlaid ordination star plot (view_type = "together")
+ggsave("cassiopea_ordi_star.png", plot = pcoa_plot, width = 7, height = 5.5, units = "in", dpi = 300, bg = "white")
+
+# Multi-column unique core matrix (plot_core_matrix)
+ggsave("cassiopea_core_matrix.png", plot = coreplot, width = 12, height = 8, units = "in", dpi = 300, bg = "white")
+```
+
+## A Note on Sequencing Depth
 
 By default the core functions test presence on the abundances as supplied
 (`abundance_type = "counts"`). If library sizes are uneven, a taxon registers as

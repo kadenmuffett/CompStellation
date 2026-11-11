@@ -1,8 +1,8 @@
 #' Select and Plot Core Microbiome
 #'
-#' This function identifies "core" taxa within treatment groups—defined as taxa
-#' present above an abundance threshold in a specified proportion of the samples
-#' in a group—and visualizes their presence/absence across all groups.
+#' This function identifies "core" taxa within treatment groups ( taxa
+#' present above an abundance threshold in X% of the samples
+#' in a group) and visualizes their presence/absence across all groups.
 #'
 #' @section A caution about sequencing depth:
 #' With `abundance_type = "counts"` (the default), presence is tested on the
@@ -13,7 +13,7 @@
 #' `abundance_type = "relative"` with a non-zero `abundance_threshold`, avoids
 #' this.
 #'
-#' @param physeq A phyloseq object containing your microbiome data.
+#' @param physeq A phyloseq object containing your data.
 #' @param group_var A character string. The name of the column in your sample data
 #'   to use for grouping samples (e.g., "Treatment", "Location").
 #' @param percent_samples The proportion of samples within a group that a taxon
@@ -29,6 +29,11 @@
 #'   converted to proportions first, so `abundance_threshold` is a relative
 #'   abundance).
 #' @param verbose Logical. If TRUE (default), report the resolved thresholds.
+#' @param font Optional character string specifying the font family for plot
+#'   text (e.g., `"sans"`, `"serif"`). If `NULL` (default), uses the active
+#'   ggplot2 theme default without overriding font family.
+#' @param label_color Character string specifying the color for all plot text
+#'   and labels (default `"black"`).
 #'
 #' @return A ggplot object representing the core taxa presence/absence plot.
 #'   The core taxa themselves are attached as the "core_list" attribute.
@@ -40,10 +45,17 @@
 #' @export
 #'
 #' @examples
-#' # data(GlobalPatterns)
-#' # coreselect(GlobalPatterns, "SampleType", percent_samples = 50, abundance_threshold = 0)
+#' data("cassiopea_ps")
+#' coreselect(
+#'   cassiopea_ps,
+#'   group_var = "Body_cav",
+#'   percent_samples = 0.75,
+#'   abundance_threshold = 0.005,
+#'   abundance_type = "relative"
+#' )
 coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0,
-                       abundance_type = c("counts", "relative"), verbose = TRUE) {
+                       abundance_type = c("counts", "relative"), verbose = TRUE, font = NULL,
+                       label_color = "black") {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
@@ -179,9 +191,18 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
             y = "Taxon"
         ) +
         theme(
-            axis.text.x = element_text(angle = 45, hjust = 1),
-            axis.text.y = element_text(size = 8)
+            text = element_text(color = label_color),
+            axis.text = element_text(color = label_color),
+            axis.text.x = element_text(angle = 45, hjust = 1, color = label_color),
+            axis.text.y = element_text(size = 8, color = label_color),
+            axis.title = element_text(color = label_color),
+            plot.title = element_text(color = label_color),
+            plot.subtitle = element_text(color = label_color)
         )
+
+    if (!is.null(font)) {
+        p <- p + theme(text = element_text(family = font, color = label_color))
+    }
 
     # Return the memberships alongside the plot: previously the only way to see
     # which taxa were core was to read them off the y-axis.

@@ -18,6 +18,17 @@
 #' @param group_subset A character vector specifying which groups to include (if NULL, all are used).
 #' @param verbose Logical. If TRUE (default), report the resolved thresholds and
 #'   the size of each group's core.
+#' @param axis_label_pos Character. Position of concentric-circle tick labels:
+#'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
+#'   position on each concentric circle), or `"none"` (hidden).
+#' @param font Optional character string specifying the font family for plot
+#'   text (e.g., `"sans"`, `"serif"`). If `NULL` (default), uses the active
+#'   ggplot2 theme default without overriding font family.
+#' @param label_color Character string specifying the color for all plot text
+#'   and labels (default `"black"`).
+#' @param max_taxa Integer between 1 and 8 specifying the maximum number of
+#'   shared core taxa to display as spokes (default `5`; use e.g. `3` for a
+#'   more compact plot).
 #' @param ... Additional arguments passed to `plot_taxa_star`, e.g. "colors_all".
 #'
 #' @return A ggplot object representing the star plot of concordant core taxa,
@@ -31,18 +42,33 @@
 #' @export
 #'
 #' @examples
-#' # plot_concordant_core(physeq, "Treatment", percent_samples = 0.5,
-#' #                      taxa_rank = "Genus", samplecolumn = "SampleID")
+#' data("cassiopea_ps")
+#' plot_concordant_core(
+#'   cassiopea_ps,
+#'   group_var = "Body_cav",
+#'   percent_samples = 0.5,
+#'   taxa_rank = "Family",
+#'   samplecolumn = "Sample_NAME",
+#'   group_subset = c("Bell", "GVC"),
+#'   max_taxa = 3
+#' )
 plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_threshold = 0,
                                  abundance_type = c("counts", "relative"), taxa_rank, samplecolumn,
-                                 log_scale = FALSE, group_subset = NULL, verbose = TRUE, ...) {
+                                 log_scale = FALSE, group_subset = NULL, verbose = TRUE,
+                                 axis_label_pos = c("side", "middle", "none"), font = NULL,
+                                 label_color = "black", max_taxa = 5, ...) {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
         stop("'physeq' must be a VALID phyloseq object.", call. = FALSE)
     }
+    if (!is.numeric(max_taxa) || length(max_taxa) != 1L || is.na(max_taxa) || max_taxa < 1 || max_taxa > 8) {
+        stop("'max_taxa' must be a single number between 1 and 8.", call. = FALSE)
+    }
+    max_taxa <- as.integer(max_taxa)
 
     abundance_type <- match.arg(abundance_type)
+    axis_label_pos <- match.arg(axis_label_pos)
 
     # Resolve and report the prevalence threshold (shared with coreselect() and
     # plot_core_matrix(), which previously validated it differently)
@@ -71,7 +97,7 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
     # --- 2. Identify Core Taxa per Group ---
 
     if (taxa_rank != "OTU") {
-        physeq_glom <- microViz::tax_agg(physeq, rank = taxa_rank)
+        physeq_glom <- agg_taxa(physeq, rank = taxa_rank)
     } else {
         physeq_glom <- physeq
     }
@@ -133,7 +159,14 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
         )
         p <- ggplot() +
              theme_void() +
-             ggtitle("No Concordant Core Found")
+             ggtitle("No Concordant Core Found") +
+             theme(
+                 text = element_text(color = label_color),
+                 plot.title = element_text(color = label_color)
+             )
+        if (!is.null(font)) {
+            p <- p + theme(text = element_text(family = font, color = label_color))
+        }
         attr(p, "concordant_core") <- character(0)
         attr(p, "core_sizes") <- core_sizes
         return(p)
@@ -142,15 +175,16 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
     if (n_concordant < 3) {
         warning("There are fewer than 3 concordant core taxa (", n_concordant,
                 "). Plot might look sparse.", call. = FALSE)
-    } else if (n_concordant > 8) {
-        # Keep the 8 most abundant rather than whichever 8 happened to come
+    }
+    if (n_concordant > max_taxa) {
+        # Keep the max_taxa most abundant rather than whichever happened to come
         # first in the taxonomy table
         samples_in_evaluated_groups <- rownames(sample_data_df)[sample_data_df[[group_var]] %in% groups]
         concordant_core <- order_taxa_by_abundance(
             physeq_glom, concordant_core, samples = samples_in_evaluated_groups
-        )[1:8]
-        warning("There are more than 8 concordant core taxa (", n_concordant,
-                "). Keeping the 8 with the highest mean relative abundance across the evaluated groups.",
+        )[seq_len(max_taxa)]
+        warning("There are more than ", max_taxa, " concordant core taxa (", n_concordant,
+                "). Keeping the ", max_taxa, " with the highest mean relative abundance across the evaluated groups.",
                 call. = FALSE)
         n_concordant <- length(concordant_core)
     }
@@ -183,6 +217,9 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
         taxa_names = concordant_core,
         samplecolumn = samplecolumn,
         log_scale = log_scale,
+        axis_label_pos = axis_label_pos,
+        font = font,
+        label_color = label_color,
         ...
     )
 

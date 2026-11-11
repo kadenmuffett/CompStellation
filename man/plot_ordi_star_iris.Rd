@@ -19,7 +19,11 @@ plot_ordi_star_iris(
   ord = NULL,
   plot_order = NULL,
   n_axes = 5,
-  verbose = TRUE
+  verbose = TRUE,
+  show_caption = FALSE,
+  axis_label_pos = c("side", "middle", "none"),
+  font = NULL,
+  label_color = "black"
 )
 }
 \arguments{
@@ -61,6 +65,19 @@ the group \strong{mean}, around the mean.}
 
 \item{verbose}{Logical. If TRUE (default), report progress and the
 conventions used for the axis percentages.}
+
+\item{show_caption}{Logical. If FALSE (default), omits the explanatory caption below the plot.}
+
+\item{axis_label_pos}{Character. Position of concentric-circle tick labels:
+\code{"side"} (default; along the left margin), \code{"middle"} (at the 12 o'clock
+position on each concentric circle), or \code{"none"} (hidden).}
+
+\item{font}{Optional character string specifying the font family for plot
+text (e.g., \code{"sans"}, \code{"serif"}). If \code{NULL} (default), uses the active
+ggplot2 theme default without overriding font family.}
+
+\item{label_color}{Character string specifying the color for all plot text
+and labels (default \code{"black"}).}
 }
 \value{
 A ggplot object representing the star-and-iris visualization.
@@ -81,14 +98,11 @@ the spokes and is not an interpretable quantity.
 }
 
 \examples{
-# data(GlobalPatterns)
-# gp <- phyloseq::subset_samples(
-#   GlobalPatterns, SampleType \%in\% c("Feces", "Ocean", "Soil")
-# )
-# plot_ordi_star_iris(
-#   physeq = gp,
-#   sample_var = "SampleType",
-#   taxa_rank = "Phylum",
-#   distance = "bray"
-# )
+data("cassiopea_ps")
+plot_ordi_star_iris(
+  physeq = cassiopea_ps,
+  sample_var = "Body_cav",
+  taxa_rank = "Phylum",
+  distance = "bray"
+)
 }

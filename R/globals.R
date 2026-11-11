@@ -2,6 +2,7 @@
 # non-standard evaluation used by dplyr, ggplot2, and tidyr.
 
 utils::globalVariables(c(
+  ".ring_label", ".ring_y",
   "Abundance", "Axis", "Axis_numeric", "Center_Abundance", "Center_Position",
   "cum_abundance", "Group", "mean_Abundance", "Mean_Position",
   "median_Abundance", "Median_Position", "N_ring_samples", "N_samples",

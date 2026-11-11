@@ -27,6 +27,14 @@
 #' @param group_subset A character vector specifying which groups to include (if NULL, all are used).
 #' @param verbose Logical. If TRUE (default), report the resolved thresholds and
 #'   the size of each group's core.
+#' @param axis_label_pos Character. Position of concentric-circle tick labels:
+#'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
+#'   position on each concentric circle), or `"none"` (hidden).
+#' @param font Optional character string specifying the font family for plot
+#'   text (e.g., `"sans"`, `"serif"`). If `NULL` (default), uses the active
+#'   ggplot2 theme default without overriding font family.
+#' @param label_color Character string specifying the color for all plot text
+#'   and labels (default `"black"`).
 #' @param ... Additional arguments, e.g. "colors_all" passed to `plot_taxa_star`.
 #'
 #' @return A patchwork object containing the matrix of plots, with the unique
@@ -41,11 +49,21 @@
 #' @export
 #'
 #' @examples
-#' # plot_core_matrix(physeq, "Treatment", percent_samples = 0.5,
-#' #                  taxa_rank = "Genus", samplecolumn = "SampleID")
+#' data("cassiopea_ps")
+#' plot_core_matrix(
+#'   cassiopea_ps,
+#'   group_var = "Body_cav",
+#'   percent_samples = 0.85,
+#'   taxa_rank = "Family",
+#'   samplecolumn = "Sample_NAME",
+#'   group_subset = c("Sub", "WTR"),
+#'   log_scale = TRUE
+#' )
 plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_threshold = 0,
                              abundance_type = c("counts", "relative"), taxa_rank, samplecolumn,
-                             log_scale = FALSE, group_subset = NULL, verbose = TRUE, ...) {
+                             log_scale = FALSE, group_subset = NULL, verbose = TRUE,
+                             axis_label_pos = c("side", "middle", "none"), font = NULL,
+                             label_color = "black", ...) {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
@@ -53,6 +71,7 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
     }
 
     abundance_type <- match.arg(abundance_type)
+    axis_label_pos <- match.arg(axis_label_pos)
 
     # Resolve and report the prevalence threshold (shared with coreselect() and
     # plot_concordant_core(), which previously validated it differently)
@@ -90,7 +109,7 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
 
     # Aggregating to rank FIRST is important if we want core at Genus level
     if (taxa_rank != "OTU") {
-        physeq_glom <- microViz::tax_agg(physeq, rank = taxa_rank)
+        physeq_glom <- agg_taxa(physeq, rank = taxa_rank)
     } else {
         physeq_glom <- physeq
     }
@@ -154,13 +173,13 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
         if (n_unique < 3) {
             warning("Group ", g, " has fewer than 3 unique core taxa (", n_unique,
                     "). Plot might look sparse.", call. = FALSE)
-        } else if (n_unique > 8) {
-            # Keep the 8 most abundant rather than whichever 8 happened to come
+        } else if (n_unique > 3) {
+            # Keep the 3 most abundant rather than whichever happened to come
             # first in the taxonomy table
             samples_in_g <- rownames(sample_data_df)[sample_data_df[[group_var]] == g]
-            u_core <- order_taxa_by_abundance(physeq_glom, u_core, samples = samples_in_g)[1:8]
-            warning("Group ", g, " has more than 8 unique core taxa (", n_unique,
-                    "). Keeping the 8 with the highest mean relative abundance in this group.",
+            u_core <- order_taxa_by_abundance(physeq_glom, u_core, samples = samples_in_g)[1:3]
+            warning("Group ", g, " has more than 3 unique core taxa (", n_unique,
+                    "). Keeping the 3 with the highest mean relative abundance in this group.",
                     call. = FALSE)
             n_unique <- length(u_core)
         }
@@ -181,6 +200,8 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
             # Plot these taxa across the evaluated groups only. Passing the full
             # object here would facet in groups whose cores were never compared,
             # so the "unique" claim would not hold for those panels.
+            # Pass axis_label_pos = "side" initially so we can apply radial labels
+            # after the global y-scale limits are set below.
             p <- plot_taxa_star(
                 physeq = phyloseq::prune_samples(samples_evaluated, physeq),
                 sample_var = group_var,
@@ -188,6 +209,9 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
                 taxa_names = u_core,
                 samplecolumn = samplecolumn,
                 log_scale = log_scale,
+                axis_label_pos = "side",
+                font = font,
+                label_color = label_color,
                 ...
             )
 
@@ -199,25 +223,36 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
 
             plots[[g]] <- p
         } else {
-            plots[[g]] <- ggplot() +
+            p_empty <- ggplot() +
                 theme_void() +
-                ggtitle(paste("No Unique Core:", g))
+                ggtitle(paste("No Unique Core:", g)) +
+                theme(
+                    text = element_text(color = label_color),
+                    plot.title = element_text(color = label_color)
+                )
+            if (!is.null(font)) {
+                p_empty <- p_empty + theme(text = element_text(family = font, color = label_color))
+            }
+            plots[[g]] <- p_empty
         }
     }
     # --- 6. Global Scaling ---
 
     # Calculate global maximum value for radial axis across all generated star plots
+    # Use untransformed data values from p$data rather than ggplot_build(p),
+    # which would already be pseudo-log transformed when log_scale = TRUE and
+    # cause double-transformation when passed to scale_y_continuous(limits = ...).
     global_max_y <- 0
     for (p in plots) {
         if (inherits(p, "ggplot") && !is.null(p$data) && nrow(p$data) > 0) {
-            pb <- ggplot2::ggplot_build(p)
-            for (layer_data in pb$data) {
-                if ("ymax" %in% names(layer_data)) {
-                    global_max_y <- max(global_max_y, max(layer_data$ymax, na.rm = TRUE), na.rm = TRUE)
-                }
-                if ("y" %in% names(layer_data)) {
-                    global_max_y <- max(global_max_y, max(layer_data$y, na.rm = TRUE), na.rm = TRUE)
-                }
+            vals <- c(
+                p$data$Center_Abundance,
+                p$data$Q75_Abundance,
+                p$data$SE_Max
+            )
+            vals <- vals[is.finite(vals)]
+            if (length(vals) > 0) {
+                global_max_y <- max(global_max_y, max(vals, na.rm = TRUE), na.rm = TRUE)
             }
         }
     }
@@ -227,10 +262,26 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
         for (g in names(plots)) {
             if (inherits(plots[[g]], "ggplot") && !is.null(plots[[g]]$data) && nrow(plots[[g]]$data) > 0) {
                 if (log_scale) {
-                    plots[[g]] <- plots[[g]] + ggplot2::scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.01), limits = c(0, global_max_y))
+                    plots[[g]] <- suppressMessages(plots[[g]] + ggplot2::scale_y_continuous(
+                        trans = scales::pseudo_log_trans(sigma = 0.01),
+                        breaks = c(0, 0.05, 0.25, 1),
+                        limits = c(0, global_max_y),
+                        expand = ggplot2::expansion(mult = c(0, 0.12))
+                    ))
                 } else {
-                    plots[[g]] <- plots[[g]] + ggplot2::scale_y_continuous(limits = c(0, global_max_y))
+                    plots[[g]] <- suppressMessages(plots[[g]] + ggplot2::scale_y_continuous(
+                        breaks = scales::breaks_pretty(n = 3),
+                        limits = c(0, global_max_y),
+                        expand = ggplot2::expansion(mult = c(0, 0.12))
+                    ))
                 }
+                plots[[g]] <- apply_radial_labels(
+                    plots[[g]],
+                    axis_label_pos = axis_label_pos,
+                    label_fn = function(x) format(x, trim = TRUE),
+                    font = font,
+                    label_color = label_color
+                )
             }
         }
     }

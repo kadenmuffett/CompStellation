@@ -145,12 +145,35 @@ order_taxa_by_abundance <- function(physeq, taxa, samples = NULL) {
   names(sort(means, decreasing = TRUE))
 }
 
+#' Wrap taxon labels exceeding max_len characters onto two lines
+#'
+#' @param lbl A character vector of taxon labels.
+#' @param max_len Maximum single-line character length before wrapping (default 8).
+#'
+#' @return A character vector with labels > `max_len` characters split onto two lines.
+#' @keywords internal
+wrap_taxon_label <- function(lbl, max_len = 8L) {
+  vapply(lbl, function(s) {
+    if (is.na(s) || nchar(s) <= max_len || s == "Other" || grepl("\n", s, fixed = TRUE)) {
+      return(s)
+    }
+    spaces <- gregexpr(" ", s, fixed = TRUE)[[1]]
+    if (spaces[1] != -1) {
+      mid <- nchar(s) / 2
+      best_sp <- spaces[which.min(abs(spaces - mid))]
+      return(paste0(substr(s, 1, best_sp - 1), "\n", substr(s, best_sp + 1, nchar(s))))
+    }
+    mid <- ceiling(nchar(s) / 2)
+    paste0(substr(s, 1, mid), "-\n", substr(s, mid + 1, nchar(s)))
+  }, character(1), USE.NAMES = FALSE)
+}
+
 #' Put "Other" last in a taxon grouping
 #'
 #' The enclosed area of a star plot depends on the order of its spokes, so the
 #' order should be deliberate rather than whatever `dplyr` happened to produce.
 #' Named taxa are ordered as supplied and the pooled "Other" wedge is pinned to
-#' the end.
+#' the end. Taxon names longer than 8 characters are wrapped onto two lines.
 #'
 #' @param x A character vector of taxon-group labels.
 #' @param levels_order Optional character vector giving the desired order of the
@@ -169,5 +192,6 @@ order_taxa_group <- function(x, levels_order = NULL) {
   }
 
   lv <- c(named, if ("Other" %in% x) "Other")
-  factor(x, levels = lv)
+  wrapped_lv <- wrap_taxon_label(lv, max_len = 8L)
+  factor(wrap_taxon_label(x, max_len = 8L), levels = wrapped_lv)
 }

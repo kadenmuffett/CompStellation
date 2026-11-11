@@ -227,6 +227,61 @@ test_that("constrained ordinations are refused with a usable message", {
   expect_error(plot_ordi_star(sim, "Group", method = "PCA", distance = "bray"))
 })
 
+test_that("plot_ordi_star defaults to bray and emits compositional guidance message when ord is NULL", {
+  sim <- make_sim()
+  expect_message(
+    p <- plot_ordi_star(sim, "Group", verbose = FALSE),
+    "This function defaults to bray curtis. For metagenomic data, consider Aitchison or CLR-transformed Euclidean ordination objects passed to plot_ordi_star\\(\\) directly."
+  )
+  expect_s3_class(p, "ggplot")
+})
+
+test_that("axis_label_pos and font options work across star and core plot functions", {
+  sim <- make_sim()
+
+  for (pos in c("side", "middle", "none")) {
+    p_taxa <- suppressMessages(plot_taxa_star(
+      sim, "Group", taxa_rank = "OTU", samplecolumn = "SampleID",
+      axis_label_pos = pos, font = "serif"
+    ))
+    expect_s3_class(p_taxa, "ggplot")
+    expect_identical(p_taxa$theme$text$family, "serif")
+
+    p_ordi <- suppressMessages(plot_ordi_star(
+      sim, "Group", verbose = FALSE, axis_label_pos = pos, font = "sans"
+    ))
+    expect_s3_class(p_ordi, "ggplot")
+    expect_identical(p_ordi$theme$text$family, "sans")
+  }
+
+  # Default font is NULL (inherits theme_minimal's empty string '' rather than "serif")
+  p_def <- suppressMessages(plot_taxa_star(sim, "Group", taxa_rank = "OTU", samplecolumn = "SampleID"))
+  expect_identical(p_def$theme$text$family, "")
+
+  p_cs <- suppressWarnings(coreselect(sim, "Group", percent_samples = 0.9, verbose = FALSE, font = "serif", label_color = "navy"))
+  expect_identical(p_cs$theme$text$family, "serif")
+  expect_identical(p_cs$theme$text$colour, "navy")
+  expect_identical(p_cs$theme$axis.text.x$colour, "navy")
+
+  p_lc <- suppressMessages(plot_taxa_star(sim, "Group", taxa_rank = "OTU", samplecolumn = "SampleID", label_color = "darkred"))
+  expect_identical(p_lc$theme$text$colour, "darkred")
+  expect_identical(p_lc$theme$axis.text.x$colour, "darkred")
+  expect_identical(p_lc$theme$axis.text.y$colour, "darkred")
+})
+
+test_that("built-in cassiopea_ps dataset loads and works across functions", {
+  data("cassiopea_ps", package = "CompStellation")
+  expect_s4_class(cassiopea_ps, "phyloseq")
+  expect_equal(phyloseq::ntaxa(cassiopea_ps), 3000)
+  expect_equal(phyloseq::nsamples(cassiopea_ps), 76)
+  expect_null(phyloseq::refseq(cassiopea_ps, errorIfNULL = FALSE))
+
+  p <- suppressMessages(plot_taxa_star(
+    cassiopea_ps, "Body_cav", taxa_rank = "Phylum", samplecolumn = "Sample_NAME"
+  ))
+  expect_s3_class(p, "ggplot")
+})
+
 test_that("the exported plot functions return plot objects", {
   sim <- make_sim()
 
@@ -266,4 +321,50 @@ test_that("uneven library sizes are flagged when presence is tested on counts", 
     coreselect(sim, "Group", percent_samples = 0.9, abundance_threshold = 0.01,
                abundance_type = "relative", verbose = FALSE)
   )
+})
+
+test_that("taxon labels longer than 8 characters are wrapped onto two lines", {
+  f <- order_taxa_group(c("Desulfosarcinaceae", "Actinomarinales Order", "Clade I", "Other"))
+  lv <- levels(f)
+  expect_identical(lv[length(lv)], "Other")
+  expect_true(any(grepl("-\n", lv, fixed = TRUE)))
+  expect_true(any(grepl("Actinomarinales\nOrder", lv, fixed = TRUE)))
+  expect_true("Clade I" %in% lv)
+})
+
+test_that("vegan_to_phyloseq converts combined or separate vegan tables to phyloseq", {
+  wide_df <- data.frame(
+    SampleID = paste0("S", 1:6),
+    Habitat  = rep(c("Reef", "Mangrove"), each = 3),
+    Depth    = c(5, 6, 4, 1, 2, 1.5),
+    TaxonA   = c(120, 95, 140, 10, 5, 12),
+    TaxonB   = c(15, 20, 10, 110, 130, 90),
+    TaxonC   = c(45, 50, 40, 45, 60, 55),
+    TaxonD   = c(5, 8, 12, 30, 25, 40)
+  )
+
+  # 1. Combined data.frame with numeric metadata column specified via metadata_cols
+  ps1 <- vegan_to_phyloseq(
+    wide_df,
+    metadata_cols = c("Habitat", "Depth"),
+    sample_col = "SampleID",
+    taxa_rank = "Genus"
+  )
+  expect_s4_class(ps1, "phyloseq")
+  expect_equal(phyloseq::ntaxa(ps1), 4)
+  expect_equal(phyloseq::nsamples(ps1), 6)
+  expect_identical(phyloseq::rank_names(ps1), "Genus")
+  expect_true(all(c("SampleID", "Habitat", "Depth") %in% phyloseq::sample_variables(ps1)))
+
+  # 2. Separate community matrix + metadata data.frame
+  comm <- as.matrix(wide_df[, c("TaxonA", "TaxonB", "TaxonC", "TaxonD")])
+  meta <- wide_df[, c("SampleID", "Habitat", "Depth")]
+  ps2 <- vegan_to_phyloseq(comm, metadata = meta, sample_col = "SampleID")
+  expect_s4_class(ps2, "phyloseq")
+  expect_equal(phyloseq::ntaxa(ps2), 4)
+  expect_equal(phyloseq::nsamples(ps2), 6)
+
+  # Works directly in plot_taxa_star()
+  p <- suppressMessages(plot_taxa_star(ps1, "Habitat", taxa_rank = "Genus", samplecolumn = "SampleID"))
+  expect_s3_class(p, "ggplot")
 })

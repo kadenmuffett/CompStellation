@@ -27,6 +27,15 @@
 #'   group mean abundances, or NULL (default) for alphabetical.
 #' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
 #' @param colors_all Optional. A character vector of colors, or "hclust" for automatic clustering colors.
+#' @param show_caption Logical. If FALSE (default), omits the explanatory caption below the plot.
+#' @param axis_label_pos Character. Position of concentric-circle tick labels:
+#'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
+#'   position on each concentric circle), or `"none"` (hidden).
+#' @param font Optional character string specifying the font family for plot
+#'   text (e.g., `"sans"`, `"serif"`). If `NULL` (default), uses the active
+#'   ggplot2 theme default without overriding font family.
+#' @param label_color Character string specifying the color for all plot text
+#'   and labels (default `"black"`).
 #'
 #' @return A ggplot object representing the star plot.
 #'
@@ -50,28 +59,16 @@
 #' @export
 #'
 #' @examples
-#' # ...
-#' #   plot_taxa_star(
-#' #     physeq = gp_subset,
-#' #     sample_var = "SampleType",
-#' #     taxa_rank = "Phylum",
-#' #     # taxa_names = c("Firmicutes", "Bacteroidetes"), # Optional
-#' #     samplecolumn = "Sample_ID",
-#' #     view_type = "separate",
-#' #     error_bar = "SE",
-#' #     fill_alpha = 0.2,
-#' #     log_scale = FALSE,
-#' #     plot_order = NULL
-#' #    )
-#' #
-#'
-#' # Example with a Data Frame
-#' # ...
-#' # plot_taxa_star(
-#' #   ...
-#' #   error_bar = "none"
-#' # )
-plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL) {
+#' data("cassiopea_ps")
+#' plot_taxa_star(
+#'   physeq = cassiopea_ps,
+#'   sample_var = "Body_cav",
+#'   taxa_rank = "Phylum",
+#'   samplecolumn = "Sample_NAME",
+#'   view_type = "separate",
+#'   error_bar = "SE"
+#' )
+plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
   # --- 1. Input Validation and Conversion ---
 
   # Check if input is a data frame and convert to phyloseq if necessary
@@ -153,6 +150,7 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
   view_type <- match.arg(view_type, c("together", "separate"))
   error_bar <- match.arg(error_bar, c("IQR", "SE", "none"))
+  axis_label_pos <- match.arg(axis_label_pos)
 
   # --- 2. Data Transformation ---
 
@@ -161,9 +159,7 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   physeq_rel <- phyloseq::transform_sample_counts(physeq, to_relative)
 
   if (taxa_rank != "OTU") {
-    physeq_taxglom <- microViz::tax_agg(physeq_rel, rank = taxa_rank)
-    physeq_rel <- physeq_taxglom
-    message("Taxa aggregated to rank: ", taxa_rank, "using microViz::tax_agg.")
+    physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank)
   } else {
     physeq_rel <- physeq_rel
     message("Taxa not aggregated. Using OTUs.")
@@ -316,11 +312,15 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     "none" = ""
   )
 
-  caption_text <- switch(error_bar,
-    "IQR" = "Bars span the interquartile range of samples within each group, around the group median.",
-    "SE" = "Bars span one standard error of the group mean.",
-    "none" = NULL
-  )
+  caption_text <- if (isTRUE(show_caption)) {
+    switch(error_bar,
+      "IQR" = "Bars span the interquartile range of samples within each group, around the group median.",
+      "SE" = "Bars span one standard error of the group mean.",
+      "none" = NULL
+    )
+  } else {
+    NULL
+  }
 
   # Create the star plot
   star_plot <- ggplot(df_grouped_2, aes(
@@ -332,11 +332,19 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     scale_color_manual(values = colors_all) +
     theme_minimal() +
     theme(
-      text = element_text(family = "serif"), axis.text.x = element_text(color = "black", size = 10),
-      axis.text.y = element_text(color = "gray50"),
+      text = element_text(color = label_color),
+      axis.text = element_text(color = label_color),
+      axis.text.x = element_text(color = label_color, size = 9),
+      axis.text.y = element_text(color = label_color),
+      axis.title = element_text(color = label_color),
+      plot.title = element_text(color = label_color),
+      strip.text = element_text(color = label_color),
+      legend.text = element_text(color = label_color),
+      legend.title = element_text(color = label_color),
       panel.grid.major = element_line(color = "#e8e8e8", linewidth = 0.5),
-      plot.caption = element_text(color = "gray40", hjust = 0, size = 8),
-      plot.margin = margin(15, 15, 15, 15)
+      panel.spacing = grid::unit(3.5, "lines"),
+      plot.caption = element_text(color = label_color, hjust = 0, size = 8),
+      plot.margin = margin(15, 30, 15, 30)
     ) +
     labs(
       title = paste0(center_label, " Relative Abundance of Key Taxa", title_suffix),
@@ -347,6 +355,10 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
       caption = caption_text
     ) +
     coord_radar(clip = "off")
+
+  if (!is.null(font)) {
+    star_plot <- star_plot + theme(text = element_text(family = font, color = label_color))
+  }
 
   if (view_type == "separate") {
     star_plot <- star_plot + facet_wrap(as.formula(paste("~", sample_var)))
@@ -362,10 +374,25 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   }
 
   if (log_scale) {
-    star_plot <- star_plot + scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 0.01), breaks = scales::breaks_pretty(n = 3))
+    star_plot <- star_plot + scale_y_continuous(
+      trans = scales::pseudo_log_trans(sigma = 0.01),
+      breaks = scales::breaks_pretty(n = 3),
+      expand = expansion(mult = c(0, 0.12))
+    )
   } else {
-    star_plot <- star_plot + scale_y_continuous(breaks = scales::breaks_pretty(n = 3))
+    star_plot <- star_plot + scale_y_continuous(
+      breaks = scales::breaks_pretty(n = 3),
+      expand = expansion(mult = c(0, 0.12))
+    )
   }
+
+  star_plot <- apply_radial_labels(
+    star_plot,
+    axis_label_pos = axis_label_pos,
+    label_fn = function(x) format(x, trim = TRUE),
+    font = font,
+    label_color = label_color
+  )
 
   return(star_plot)
 }

@@ -19,6 +19,6 @@ A factor.
 The enclosed area of a star plot depends on the order of its spokes, so the
 order should be deliberate rather than whatever \code{dplyr} happened to produce.
 Named taxa are ordered as supplied and the pooled "Other" wedge is pinned to
-the end.
+the end. Taxon names longer than 8 characters are wrapped onto two lines.
 }
 \keyword{internal}

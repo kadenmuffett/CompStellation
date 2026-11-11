@@ -10,11 +10,13 @@ coreselect(
   percent_samples = 0.95,
   abundance_threshold = 0,
   abundance_type = c("counts", "relative"),
-  verbose = TRUE
+  verbose = TRUE,
+  font = NULL,
+  label_color = "black"
 )
 }
 \arguments{
-\item{physeq}{A phyloseq object containing your microbiome data.}
+\item{physeq}{A phyloseq object containing your data.}
 
 \item{group_var}{A character string. The name of the column in your sample data
 to use for grouping samples (e.g., "Treatment", "Location").}
@@ -35,15 +37,22 @@ converted to proportions first, so \code{abundance_threshold} is a relative
 abundance).}
 
 \item{verbose}{Logical. If TRUE (default), report the resolved thresholds.}
+
+\item{font}{Optional character string specifying the font family for plot
+text (e.g., \code{"sans"}, \code{"serif"}). If \code{NULL} (default), uses the active
+ggplot2 theme default without overriding font family.}
+
+\item{label_color}{Character string specifying the color for all plot text
+and labels (default \code{"black"}).}
 }
 \value{
 A ggplot object representing the core taxa presence/absence plot.
 The core taxa themselves are attached as the "core_list" attribute.
 }
 \description{
-This function identifies "core" taxa within treatment groups—defined as taxa
-present above an abundance threshold in a specified proportion of the samples
-in a group—and visualizes their presence/absence across all groups.
+This function identifies "core" taxa within treatment groups ( taxa
+present above an abundance threshold in X\% of the samples
+in a group) and visualizes their presence/absence across all groups.
 }
 \section{A caution about sequencing depth}{
 
@@ -57,6 +66,12 @@ this.
 }
 
 \examples{
-# data(GlobalPatterns)
-# coreselect(GlobalPatterns, "SampleType", percent_samples = 50, abundance_threshold = 0)
+data("cassiopea_ps")
+coreselect(
+  cassiopea_ps,
+  group_var = "Body_cav",
+  percent_samples = 0.75,
+  abundance_threshold = 0.005,
+  abundance_type = "relative"
+)
 }
