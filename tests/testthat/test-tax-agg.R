@@ -103,3 +103,54 @@ test_that("plot_taxa_star, plot_core_matrix, and plot_concordant_core work with 
   )
   expect_s3_class(p_cc, "ggplot")
 })
+
+test_that("coreselect defines the core at a taxonomic rank when taxa_rank is given", {
+  ps <- make_tax_sim()
+
+  # Default stays at the ASV level, with no aggregation message
+  p_asv <- suppressWarnings(coreselect(ps, "Group", percent_samples = 1, verbose = FALSE))
+  expect_identical(attr(p_asv, "taxa_rank"), "OTU")
+  expect_true(all(grepl("^ASV", unlist(attr(p_asv, "core_list")))))
+
+  expect_message(
+    p_gen <- suppressWarnings(coreselect(ps, "Group", percent_samples = 1, taxa_rank = "Genus")),
+    "Taxa aggregated to rank: Genus"
+  )
+  expect_s3_class(p_gen, "ggplot")
+  expect_identical(attr(p_gen, "taxa_rank"), "Genus")
+  core_gen <- unlist(attr(p_gen, "core_list"))
+  expect_true("Bacteroides" %in% core_gen)
+  expect_false(any(grepl("^ASV", core_gen)))
+  expect_identical(p_gen$labels$y, "Genus")
+
+  # At Phylum, the two Bacteroidota and Firmicutes lineages collapse to two taxa
+  p_phy <- suppressWarnings(coreselect(ps, "Group", percent_samples = 1,
+                                       taxa_rank = "Phylum", verbose = FALSE))
+  expect_setequal(unique(unlist(attr(p_phy, "core_list"))), c("Bacteroidota", "Firmicutes"))
+})
+
+test_that("coreselect applies abundance_threshold to summed abundance at the rank", {
+  ps <- make_tax_sim()
+  # In sample S1, ASV1 = 10 and ASV2 = 5: neither exceeds 12, but Bacteroides
+  # (their sum, 15) does, so Bacteroides is core in A at the genus level only
+  p_asv <- suppressWarnings(coreselect(ps, "Group", percent_samples = 1,
+                                       abundance_threshold = 12, verbose = FALSE))
+  expect_false("ASV2" %in% attr(p_asv, "core_list")[["A"]])
+
+  p_gen <- suppressWarnings(coreselect(ps, "Group", percent_samples = 1,
+                                       abundance_threshold = 12, taxa_rank = "Genus",
+                                       verbose = FALSE))
+  expect_true("Bacteroides" %in% attr(p_gen, "core_list")[["A"]])
+})
+
+test_that("coreselect rejects a taxa_rank that is not in the tax_table", {
+  ps <- make_tax_sim()
+  expect_error(
+    coreselect(ps, "Group", percent_samples = 1, taxa_rank = "Strain", verbose = FALSE),
+    "'Strain' is not a taxonomic rank.*Available: OTU, Kingdom"
+  )
+  expect_error(
+    coreselect(ps, "Group", percent_samples = 1, taxa_rank = c("Genus", "Family"), verbose = FALSE),
+    "single character string"
+  )
+})

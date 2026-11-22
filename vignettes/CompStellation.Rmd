@@ -181,6 +181,18 @@ print(core_res)
 # The core memberships come back with the plot, so they can be inspected
 # or fed straight into plot_taxa_star()
 lapply(attr(core_res, "core_list"), head)
+
+# Define the core at a taxonomic rank instead of per ASV. Abundances are summed
+# within each genus before prevalence is computed, so a genus is "present" in a
+# sample when its total abundance exceeds the threshold, even if no single ASV does.
+core_genus <- coreselect(
+    physeq              = cassiopea_ps,
+    group_var           = "Body_cav",
+    percent_samples     = 0.75,
+    abundance_threshold = 0.005,
+    abundance_type      = "relative",
+    taxa_rank           = "Genus"
+)
 ```
 
 ### 4. `plot_core_matrix()`

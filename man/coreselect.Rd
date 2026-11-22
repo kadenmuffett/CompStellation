@@ -10,6 +10,7 @@ coreselect(
   percent_samples = 0.95,
   abundance_threshold = 0,
   abundance_type = c("counts", "relative"),
+  taxa_rank = "OTU",
   verbose = TRUE,
   font = NULL,
   label_color = "black"
@@ -36,6 +37,16 @@ applied to the abundances as supplied) or "relative" (each sample is
 converted to proportions first, so \code{abundance_threshold} is a relative
 abundance).}
 
+\item{taxa_rank}{A character string naming the taxonomic rank at which to
+define the core (e.g. \code{"Genus"}, \code{"Family"}). Defaults to \code{"OTU"}, which
+uses the taxa as supplied (ASVs/OTUs) with no aggregation. Any other value
+must be a column of the \code{tax_table}; abundances are then summed within each
+taxon at that rank before prevalence is computed, so a genus counts as
+present in a sample when its \emph{summed} abundance exceeds
+\code{abundance_threshold}. Unclassified placeholders are relabelled from the
+nearest classified higher rank (e.g. "Bacteroidaceae Family"), the same
+aggregation used by \code{\link[=plot_core_matrix]{plot_core_matrix()}} and \code{\link[=plot_concordant_core]{plot_concordant_core()}}.}
+
 \item{verbose}{Logical. If TRUE (default), report the resolved thresholds.}
 
 \item{font}{Optional character string specifying the font family for plot
@@ -47,7 +58,8 @@ and labels (default \code{"black"}).}
 }
 \value{
 A ggplot object representing the core taxa presence/absence plot.
-The core taxa themselves are attached as the "core_list" attribute.
+The core taxa themselves are attached as the "core_list" attribute, and the
+rank they were defined at as the "taxa_rank" attribute.
 }
 \description{
 This function identifies "core" taxa within treatment groups ( taxa
@@ -73,5 +85,15 @@ coreselect(
   percent_samples = 0.75,
   abundance_threshold = 0.005,
   abundance_type = "relative"
+)
+
+# The same comparison, with the core defined at the genus level
+coreselect(
+  cassiopea_ps,
+  group_var = "Body_cav",
+  percent_samples = 0.75,
+  abundance_threshold = 0.005,
+  abundance_type = "relative",
+  taxa_rank = "Genus"
 )
 }

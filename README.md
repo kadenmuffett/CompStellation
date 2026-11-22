@@ -193,6 +193,17 @@ p_core_dots <- coreselect(
 )
 print(p_core_dots)
 lapply(attr(p_core_dots, "core_list"), head)
+
+# Define the core at a taxonomic rank instead of per ASV. Abundances are summed
+# within each genus first, so the threshold applies to the genus as a whole.
+p_core_genus <- coreselect(
+  physeq              = cassiopea_ps,
+  group_var           = "Body_cav",
+  percent_samples     = 0.75,
+  abundance_threshold = 0.005,
+  abundance_type      = "relative",
+  taxa_rank           = "Genus"   # default "OTU" = no aggregation
+)
 ```
 
 ![](man/figures/readme_coreselect.png)

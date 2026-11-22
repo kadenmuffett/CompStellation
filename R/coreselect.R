@@ -28,6 +28,15 @@
 #'   applied to the abundances as supplied) or "relative" (each sample is
 #'   converted to proportions first, so `abundance_threshold` is a relative
 #'   abundance).
+#' @param taxa_rank A character string naming the taxonomic rank at which to
+#'   define the core (e.g. `"Genus"`, `"Family"`). Defaults to `"OTU"`, which
+#'   uses the taxa as supplied (ASVs/OTUs) with no aggregation. Any other value
+#'   must be a column of the `tax_table`; abundances are then summed within each
+#'   taxon at that rank before prevalence is computed, so a genus counts as
+#'   present in a sample when its *summed* abundance exceeds
+#'   `abundance_threshold`. Unclassified placeholders are relabelled from the
+#'   nearest classified higher rank (e.g. "Bacteroidaceae Family"), the same
+#'   aggregation used by [plot_core_matrix()] and [plot_concordant_core()].
 #' @param verbose Logical. If TRUE (default), report the resolved thresholds.
 #' @param font Optional character string specifying the font family for plot
 #'   text (e.g., `"sans"`, `"serif"`). If `NULL` (default), uses the active
@@ -36,7 +45,8 @@
 #'   and labels (default `"black"`).
 #'
 #' @return A ggplot object representing the core taxa presence/absence plot.
-#'   The core taxa themselves are attached as the "core_list" attribute.
+#'   The core taxa themselves are attached as the "core_list" attribute, and the
+#'   rank they were defined at as the "taxa_rank" attribute.
 #'
 #' @import phyloseq
 #' @import ggplot2
@@ -53,9 +63,19 @@
 #'   abundance_threshold = 0.005,
 #'   abundance_type = "relative"
 #' )
+#'
+#' # The same comparison, with the core defined at the genus level
+#' coreselect(
+#'   cassiopea_ps,
+#'   group_var = "Body_cav",
+#'   percent_samples = 0.75,
+#'   abundance_threshold = 0.005,
+#'   abundance_type = "relative",
+#'   taxa_rank = "Genus"
+#' )
 coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0,
-                       abundance_type = c("counts", "relative"), verbose = TRUE, font = NULL,
-                       label_color = "black") {
+                       abundance_type = c("counts", "relative"), taxa_rank = "OTU",
+                       verbose = TRUE, font = NULL, label_color = "black") {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
@@ -71,6 +91,20 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
     }
 
     abundance_type <- match.arg(abundance_type)
+
+    if (!is.character(taxa_rank) || length(taxa_rank) != 1L || is.na(taxa_rank)) {
+        stop("'taxa_rank' must be a single character string.", call. = FALSE)
+    }
+    if (taxa_rank != "OTU") {
+        ranks <- phyloseq::rank_names(physeq, errorIfNULL = FALSE)
+        if (is.null(ranks) || !taxa_rank %in% ranks) {
+            stop(
+                "'", taxa_rank, "' is not a taxonomic rank in the phyloseq object. Available: ",
+                paste(c("OTU", ranks), collapse = ", "), ".",
+                call. = FALSE
+            )
+        }
+    }
 
     # Resolve and report the prevalence threshold, so that an ambiguous value
     # such as 1 cannot be silently read as 1% when it means 100%
@@ -90,6 +124,18 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
     }
 
     # --- 2. Identify Core Taxa per Group ---
+
+    # Aggregate to the requested rank FIRST, so prevalence is computed on the
+    # summed abundance of each taxon at that rank rather than on its ASVs.
+    # Library sizes are unchanged by aggregation, so the depth warning above
+    # still applies as-is.
+    if (taxa_rank != "OTU") {
+        physeq <- if (verbose) {
+            agg_taxa(physeq, rank = taxa_rank)
+        } else {
+            suppressMessages(agg_taxa(physeq, rank = taxa_rank))
+        }
+    }
 
     core_list <- list()
 
@@ -178,7 +224,11 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
         geom_point(size = 3) +
         theme_bw() + # Clean theme
         labs(
-            title = paste0("Core Microbiome (Prevalence >= ", percent_samples * 100, "%)"),
+            title = paste0(
+                "Core Microbiome",
+                if (taxa_rank != "OTU") paste0(" at ", taxa_rank, " level") else "",
+                " (Prevalence >= ", percent_samples * 100, "%)"
+            ),
             subtitle = paste0(
                 "Present = ", abundance_type, " abundance > ", abundance_threshold,
                 "; n = ", paste(vapply(
@@ -188,7 +238,7 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
                 ), collapse = "/"), " samples per group"
             ),
             x = "Sample Group",
-            y = "Taxon"
+            y = if (taxa_rank != "OTU") taxa_rank else "Taxon"
         ) +
         theme(
             text = element_text(color = label_color),
@@ -207,6 +257,7 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
     # Return the memberships alongside the plot: previously the only way to see
     # which taxa were core was to read them off the y-axis.
     attr(p, "core_list") <- core_list
+    attr(p, "taxa_rank") <- taxa_rank
 
     return(p)
 }
