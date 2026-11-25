@@ -20,11 +20,12 @@ unclassified_pattern <- paste0(
 #'
 #' @param physeq A phyloseq object with a tax_table.
 #' @param rank Name of the rank to aggregate to.
+#' @param verbose Logical. If TRUE (default), emit aggregation message.
 #' @return A phyloseq object with one taxon per label at `rank`. The phylogenetic
 #'   tree and reference sequences are dropped, since they no longer apply.
 #' @keywords internal
 #' @noRd
-agg_taxa <- function(physeq, rank) {
+agg_taxa <- function(physeq, rank, verbose = TRUE) {
   tt <- methods::as(phyloseq::tax_table(physeq), "matrix")
   idx <- match(rank, colnames(tt))
   if (is.na(idx)) {
@@ -72,6 +73,8 @@ agg_taxa <- function(physeq, rank) {
   )
   sd <- phyloseq::sample_data(physeq, errorIfNULL = FALSE)
   if (!is.null(sd)) parts <- c(parts, list(sd))
-  message("Taxa aggregated to rank: ", rank, " using an internal heuristic to remove unclassifieds. Some unclassifieds may remain.")
+  if (verbose) {
+    message("Taxa aggregated to rank: ", rank, " using an internal heuristic to remove unclassifieds. Some unclassifieds may remain.")
+  }
   do.call(phyloseq::phyloseq, parts)
 }

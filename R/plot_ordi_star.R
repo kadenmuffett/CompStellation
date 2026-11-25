@@ -114,7 +114,7 @@ plot_ordi_star <- function(physeq, group_var, colors_all, method = "PCoA", view_
     if (is.null(distance)) {
       stop("'distance' must be provided for ", method, " when 'ord' is NULL.", call. = FALSE)
     }
-    if (identical(distance, "bray")) {
+    if (verbose && identical(distance, "bray")) {
       message("This function defaults to bray curtis. For metagenomic data, consider Aitchison or CLR-transformed Euclidean ordination objects passed to plot_ordi_star() directly.")
     }
 

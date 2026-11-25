@@ -1,10 +1,18 @@
 Package: CompStellation
-Title: Microbiome Star: A Package for Visualizing Compositional Starplots
-Version: 0.0.1
+Title: Interpretable Star Plots for Compositional Ecological Data
+Version: 0.1.0
 Authors@R: 
     person("Kaden", "Muffett", , "kmmuffett@gmail.com", role = c("aut", "cre"))
-Description: This package is designed to take a dataframe or phyloseq object and generate compositional starplots for microbiome data. This encompassed four key functions: a way to simultaneously compare PCoA positions of groups at up to 5 levels, a way to identify core microbiome overlap among groups, a visualization tool for comparative core microbiota, and a starplot for any taxa.
+Description: Generates interpretable compositional and multidimensional star
+    (radar) plots from 'phyloseq' objects or 'vegan'-style community tables
+    using 'ggplot2'. Summarizes focal and core taxon relative abundances across
+    groups, evaluates core prevalence thresholds, and displays group centers
+    across multiple ordination axes simultaneously.
 License: AGPL-3
+URL: https://github.com/kadenmuffett/CompStellation
+BugReports: https://github.com/kadenmuffett/CompStellation/issues
+Depends:
+    R (>= 3.5.0)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
@@ -12,11 +20,11 @@ biocViews: Microbiome, Metagenomics, Visualization, Sequencing
 Imports:
     dplyr,
     ggplot2 (>= 3.4.0),
+    ggnewscale,
     grDevices,
     methods,
-    phyloseq,
     patchwork,
-    ggnewscale,
+    phyloseq,
     rlang,
     scales,
     stats,
@@ -25,11 +33,10 @@ Imports:
     utils,
     vegan
 Suggests: 
+    ape,
     knitr,
     rmarkdown,
-    testthat (>= 3.0.0),
-    covr,
-    ape
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.1.0

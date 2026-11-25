@@ -227,13 +227,14 @@ test_that("constrained ordinations are refused with a usable message", {
   expect_error(plot_ordi_star(sim, "Group", method = "PCA", distance = "bray"))
 })
 
-test_that("plot_ordi_star defaults to bray and emits compositional guidance message when ord is NULL", {
+test_that("plot_ordi_star defaults to bray, emits compositional guidance when verbose, and is silent when verbose = FALSE", {
   sim <- make_sim()
   expect_message(
-    p <- plot_ordi_star(sim, "Group", verbose = FALSE),
+    p <- plot_ordi_star(sim, "Group"),
     "This function defaults to bray curtis. For metagenomic data, consider Aitchison or CLR-transformed Euclidean ordination objects passed to plot_ordi_star\\(\\) directly."
   )
   expect_s3_class(p, "ggplot")
+  expect_no_message(plot_ordi_star(sim, "Group", verbose = FALSE))
 })
 
 test_that("axis_label_pos and font options work across star and core plot functions", {

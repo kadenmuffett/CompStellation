@@ -5,3 +5,4 @@
 ^test$
 ^[^/]*\.R$
 ^session_changelog\.txt$
+^cran-comments\.md$

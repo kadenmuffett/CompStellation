@@ -6,14 +6,21 @@
 
 The `CompStellation` package provides interpretable star (radar) plots for compositional and multidimensional ecological data in R using `phyloseq` and `ggplot2`. Its core features replace standard points or stacked bars with multidimensional star polygons showing the relative abundance of focal or core taxa (`plot_taxa_star()`, `plot_core_matrix()`, `plot_concordant_core()`) or group centres across several ordination axes simultaneously (`plot_ordi_star()`, `plot_ordi_star_iris()`).
 
-<img width="1315" height="747" alt="image" src="https://github.com/user-attachments/assets/89dd71a7-bb12-43b5-979c-83a2a9a43128" />
+![](man/figures/readme_ordi_tog.png)
 *Group ordination positions on the first five PCoA axes (`plot_ordi_star()`)*
 
 Transparency note! I used Gemini and Claude to help identify and fix inconsistencies in the readme and between subcommands, as well as design tests to make sure the package functions properly.
 
 ## Installation
 
-`CompStellation` depends on `phyloseq` (Bioconductor), so install `phyloseq` first if it is not already installed:
+`CompStellation` imports `phyloseq` from Bioconductor. To install from CRAN (enabling both CRAN and Bioconductor repositories so `phyloseq` resolves automatically):
+
+```r
+setRepositories(ind = 1:2)
+install.packages("CompStellation")
+```
+
+Or install the development version from GitHub:
 
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
@@ -77,7 +84,7 @@ plot_taxa_star(
   taxa_names   = c("Bacteroidia", "Clostridia", "Gammaprot")
 )
 ```
-#NB: the data.frame as input without conversion works *only with taxa star*. Use conversion for all other functions.
+*NB:* the `data.frame` input without conversion works *only with `plot_taxa_star()`*. Use `vegan_to_phyloseq()` for all other functions.
 
 ## Built-in Datasets
 

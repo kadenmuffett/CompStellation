@@ -116,7 +116,7 @@ plot_core_matrix <- function(physeq, group_var, percent_samples = 0.95, abundanc
 
     # Aggregating to rank FIRST is important if we want core at Genus level
     if (taxa_rank != "OTU") {
-        physeq_glom <- agg_taxa(physeq, rank = taxa_rank)
+        physeq_glom <- agg_taxa(physeq, rank = taxa_rank, verbose = verbose)
     } else {
         physeq_glom <- physeq
         if (verbose) message("Taxa not aggregated. Using OTUs.")

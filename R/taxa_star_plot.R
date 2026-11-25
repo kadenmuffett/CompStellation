@@ -167,7 +167,7 @@ plot_taxa_star <- function(physeq, group_var, taxa_rank = "OTU", taxa_names = NU
   physeq_rel <- phyloseq::transform_sample_counts(physeq, to_relative)
 
   if (taxa_rank != "OTU") {
-    physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank)
+    physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank, verbose = verbose)
   } else {
     physeq_rel <- physeq_rel
     if (verbose) message("Taxa not aggregated. Using OTUs.")

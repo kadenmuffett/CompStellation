@@ -188,7 +188,7 @@ plot_ordi_star_iris <- function(physeq, group_var, taxa_rank = "OTU", n_taxa = 5
 
   if (taxa_rank != "OTU") {
     if (verbose) message("Aggregating taxonomy to ", taxa_rank, " level...")
-    physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank)
+    physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank, verbose = verbose)
   } else if (verbose) {
     message("Taxa not aggregated. Using OTUs.")
   }

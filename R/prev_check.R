@@ -66,7 +66,7 @@ prev_check <- function(physeq, group_var, abundance_threshold = 0,
   if (abundance_type == "counts") warn_library_sizes(physeq)
 
   physeq_glom <- if (taxa_rank != "OTU") {
-    agg_taxa(physeq, rank = taxa_rank)
+    agg_taxa(physeq, rank = taxa_rank, verbose = verbose)
   } else {
     if (verbose) message("Taxa not aggregated. Using OTUs.")
     physeq

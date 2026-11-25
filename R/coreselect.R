@@ -100,7 +100,7 @@ coreselect <- function(physeq, group_var, percent_samples = 0.95, abundance_thre
     # --- 2. Identify Core Taxa per Group ---
 
     if (taxa_rank != "OTU") {
-        physeq_glom <- agg_taxa(physeq, rank = taxa_rank)
+        physeq_glom <- agg_taxa(physeq, rank = taxa_rank, verbose = verbose)
     } else {
         physeq_glom <- physeq
         if (verbose) message("Taxa not aggregated. Using OTUs.")

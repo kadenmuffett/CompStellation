@@ -96,7 +96,7 @@ test_that("plot_taxa_star, coreselect, plot_core_matrix, and plot_concordant_cor
 
   expect_message(
     p_cs <- suppressWarnings(coreselect(
-      ps, "Group", percent_samples = 0.5, taxa_rank = "Family", verbose = FALSE
+      ps, "Group", percent_samples = 0.5, taxa_rank = "Family", verbose = TRUE
     )),
     "Taxa aggregated to rank: Family using an internal heuristic to remove unclassifieds. Some unclassifieds may remain."
   )
@@ -104,20 +104,26 @@ test_that("plot_taxa_star, coreselect, plot_core_matrix, and plot_concordant_cor
   expect_identical(p_cs$labels$y, "Family")
   expect_true("Bacteroidaceae" %in% attr(p_cs, "core_list")$A)
   expect_true("Bacteroidales Order" %in% attr(p_cs, "core_list")$A)
+  expect_no_message(suppressWarnings(coreselect(
+    ps, "Group", percent_samples = 0.5, taxa_rank = "Family", verbose = FALSE
+  )))
 
   # Default taxa_rank = "OTU" leaves taxa unaggregated
-  p_cs_otu <- suppressMessages(suppressWarnings(coreselect(
+  p_cs_otu <- suppressWarnings(coreselect(
     ps, "Group", percent_samples = 0.5, verbose = FALSE
-  )))
+  ))
   expect_identical(p_cs_otu$labels$y, "Taxon")
   expect_true("ASV1" %in% attr(p_cs_otu, "core_list")$A)
 
   expect_message(
     p_cc <- suppressWarnings(plot_concordant_core(
       ps, "Group", percent_samples = 0.5, taxa_rank = "Family",
-      samplecolumn = "SampleID", verbose = FALSE
+      samplecolumn = "SampleID", verbose = TRUE
     )),
     "Taxa aggregated to rank: Family using an internal heuristic to remove unclassifieds. Some unclassifieds may remain."
   )
   expect_s3_class(p_cc, "ggplot")
+  expect_no_message(suppressWarnings(plot_concordant_core(
+    ps, "Group", percent_samples = 0.5, taxa_rank = "Family", verbose = FALSE
+  )))
 })
