@@ -13,14 +13,7 @@ Transparency note! I used Gemini and Claude to help identify and fix inconsisten
 
 ## Installation
 
-`CompStellation` imports `phyloseq` from Bioconductor. To install from CRAN (enabling both CRAN and Bioconductor repositories so `phyloseq` resolves automatically):
-
-```r
-setRepositories(ind = 1:2)
-install.packages("CompStellation")
-```
-
-Or install the development version from GitHub:
+`CompStellation` imports `phyloseq` from Bioconductor. To install the version from GitHub:
 
 ```r
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
