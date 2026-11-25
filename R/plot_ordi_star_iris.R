@@ -13,9 +13,10 @@
 #' the spokes and is not an interpretable quantity.
 #'
 #' @param physeq A phyloseq object containing your microbiome data.
-#' @param sample_var A character string. The name of the column in your sample data
+#' @param group_var A character string. The name of the column in your sample data
 #'   to use for grouping samples (e.g., "location", "treatment").
-#' @param taxa_rank A character string. The taxonomic rank for the iris plot (default "Phylum").
+#' @param taxa_rank A character string. The taxonomic rank for the iris plot, or
+#'   `"OTU"` (default) for unaggregated taxa.
 #' @param n_taxa Integer. The number of top taxa to explicitly show in the iris plot (default 5).
 #'   Remaining taxa are grouped into "Other".
 #' @param colors_star Optional vector of colors for the central ordination star polygons.
@@ -46,7 +47,9 @@
 #' @param label_color Character string specifying the color for all plot text
 #'   and labels (default `"black"`).
 #'
-#' @return A ggplot object representing the star-and-iris visualization.
+#' @return A ggplot object representing the star-and-iris visualization, with
+#'   `attr(plot, "ordination")`, `attr(plot, "scores")`, and
+#'   `attr(plot, "taxa_names")` attached.
 #'
 #' @import phyloseq
 #' @import ggplot2
@@ -59,11 +62,11 @@
 #' data("cassiopea_ps")
 #' plot_ordi_star_iris(
 #'   physeq = cassiopea_ps,
-#'   sample_var = "Body_cav",
+#'   group_var = "Body_cav",
 #'   taxa_rank = "Phylum",
 #'   distance = "bray"
 #' )
-plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa = 5,
+plot_ordi_star_iris <- function(physeq, group_var, taxa_rank = "OTU", n_taxa = 5,
                                 colors_star = NULL, colors_taxa = NULL,
                                 method = "PCoA", view_type = "separate", error_bar = "IQR",
                                 fill_alpha = 0.2, distance = NULL, ord = NULL,
@@ -75,9 +78,9 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   if (!inherits(physeq, "phyloseq")) {
     stop("'physeq' must be a VALID phyloseq object.", call. = FALSE)
   }
-  if (!sample_var %in% phyloseq::sample_variables(physeq)) {
+  if (!group_var %in% phyloseq::sample_variables(physeq)) {
     stop(
-      "'", sample_var, "' is not a sample variable in the phyloseq object. Available: ",
+      "'", group_var, "' is not a sample variable in the phyloseq object. Available: ",
       paste(phyloseq::sample_variables(physeq), collapse = ", "), ".",
       call. = FALSE
     )
@@ -141,7 +144,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   pcoa_stats <- pcoa_df_shifted %>%
     tidyr::pivot_longer(cols = tidyselect::all_of(axis_labels), names_to = "Axis", values_to = "Value") %>%
-    dplyr::group_by(!!rlang::sym(sample_var), Axis) %>%
+    dplyr::group_by(!!rlang::sym(group_var), Axis) %>%
     dplyr::summarise(
       N_samples = sum(!is.na(Value)),
       Mean_Position = mean(Value, na.rm = TRUE),
@@ -163,7 +166,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   center_label <- if (error_bar == "IQR") "Median" else "Mean"
 
   if (error_bar != "none") {
-    thin <- unique(as.character(pcoa_stats[[sample_var]][pcoa_stats$N_samples < 2]))
+    thin <- unique(as.character(pcoa_stats[[group_var]][pcoa_stats$N_samples < 2]))
     if (length(thin) > 0) {
       warning(
         "No interval can be drawn for group(s) with a single sample: ",
@@ -177,15 +180,17 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   # in row order, so a factor whose levels disagree with the row order draws a
   # self-crossing shape.
   pcoa_stats$Axis <- factor(pcoa_stats$Axis, levels = axis_labels)
-  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!rlang::sym(sample_var), Axis)
+  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!rlang::sym(group_var), Axis)
   pcoa_stats$Axis_numeric <- as.numeric(pcoa_stats$Axis)
 
   # --- 3. Taxonomic Aggregation (Iris Plot Data) ---
-  if (verbose) message("Aggregating taxonomy to ", taxa_rank, " level...")
   physeq_rel <- phyloseq::transform_sample_counts(physeq, to_relative)
 
   if (taxa_rank != "OTU") {
+    if (verbose) message("Aggregating taxonomy to ", taxa_rank, " level...")
     physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank)
+  } else if (verbose) {
+    message("Taxa not aggregated. Using OTUs.")
   }
 
   df_tax <- phyloseq::psmelt(physeq_rel)
@@ -204,7 +209,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   # Summarize by sample and new Taxa_Group
   df_tax_samples <- df_tax %>%
-    dplyr::group_by(Sample, !!rlang::sym(sample_var), Taxa_Group) %>%
+    dplyr::group_by(Sample, !!rlang::sym(group_var), Taxa_Group) %>%
     dplyr::summarise(Abundance = sum(Abundance, na.rm = TRUE), .groups = "drop")
 
   # Stack the named taxa in abundance order with the pooled wedge outermost,
@@ -215,8 +220,8 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   total_circumference <- n_axes
 
   df_tax_pos <- df_tax_samples %>%
-    dplyr::distinct(!!rlang::sym(sample_var), Sample) %>%
-    dplyr::group_by(!!rlang::sym(sample_var)) %>%
+    dplyr::distinct(!!rlang::sym(group_var), Sample) %>%
+    dplyr::group_by(!!rlang::sym(group_var)) %>%
     dplyr::arrange(Sample, .by_group = TRUE) %>%
     dplyr::mutate(
       N_ring_samples = dplyr::n(),
@@ -242,7 +247,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   iris_df <- df_tax_samples %>%
     dplyr::left_join(df_tax_pos %>% dplyr::select(Sample, x_pos, width), by = "Sample") %>%
-    dplyr::group_by(!!rlang::sym(sample_var), Sample) %>%
+    dplyr::group_by(!!rlang::sym(group_var), Sample) %>%
     dplyr::arrange(Taxa_Group, .by_group = TRUE) %>%
     dplyr::mutate(
       cum_abundance = cumsum(Abundance),
@@ -266,7 +271,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
     poly_group = paste0(iris_df$Sample[corner], "_", iris_df$Taxa_Group[corner], "_", corner),
     stringsAsFactors = FALSE
   )
-  iris_poly_df[[sample_var]] <- iris_df[[sample_var]][corner]
+  iris_poly_df[[group_var]] <- iris_df[[group_var]][corner]
 
   # --- 4. Plot Ordering ---
   if (!is.null(plot_order)) {
@@ -277,12 +282,12 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
         call. = FALSE
       )
     }
-    pcoa_stats[[sample_var]] <- factor(pcoa_stats[[sample_var]], levels = plot_order)
-    iris_poly_df[[sample_var]] <- factor(iris_poly_df[[sample_var]], levels = plot_order)
+    pcoa_stats[[group_var]] <- factor(pcoa_stats[[group_var]], levels = plot_order)
+    iris_poly_df[[group_var]] <- factor(iris_poly_df[[group_var]], levels = plot_order)
   }
 
   # --- 5. Colors ---
-  groups <- unique(as.character(pcoa_stats[[sample_var]]))
+  groups <- unique(as.character(pcoa_stats[[group_var]]))
   if (is.null(colors_star)) {
     colors_star <- get_default_colors(groups)
   }
@@ -306,19 +311,19 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
 
   p <- ggplot2::ggplot() +
     # Layer 1: Ordination Star Polygon
-    ggplot2::geom_polygon(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, y = Center_Position, group = !!rlang::sym(sample_var), fill = !!rlang::sym(sample_var), color = !!rlang::sym(sample_var)), linewidth = 0.8, alpha = fill_alpha)
+    ggplot2::geom_polygon(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, y = Center_Position, group = !!rlang::sym(group_var), fill = !!rlang::sym(group_var), color = !!rlang::sym(group_var)), linewidth = 0.8, alpha = fill_alpha)
 
   # Error bars for the central star
   if (error_bar == "IQR") {
-    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = Q25_Position, ymax = Q75_Position, color = !!rlang::sym(sample_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
+    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = Q25_Position, ymax = Q75_Position, color = !!rlang::sym(group_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
   } else if (error_bar == "SE") {
-    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = SE_Min, ymax = SE_Max, color = !!rlang::sym(sample_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
+    p <- p + ggplot2::geom_errorbar(data = pcoa_stats, ggplot2::aes(x = Axis_numeric, ymin = SE_Min, ymax = SE_Max, color = !!rlang::sym(group_var)), width = 0.2, alpha = 0.7, show.legend = FALSE)
   }
 
   # Set scales for Layer 1
   p <- p +
-    ggplot2::scale_fill_manual(values = colors_star, name = paste(method, "Star\n", sample_var)) +
-    ggplot2::scale_color_manual(values = colors_star, name = paste(method, "Star\n", sample_var)) +
+    ggplot2::scale_fill_manual(values = colors_star, name = paste(method, "Star\n", group_var)) +
+    ggplot2::scale_color_manual(values = colors_star, name = paste(method, "Star\n", group_var)) +
 
     # NEW FILL SCALE for the Outer Ring
     ggnewscale::new_scale_fill() +
@@ -365,7 +370,7 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
   }
 
   if (view_type == "separate") {
-    p <- p + ggplot2::facet_wrap(stats::as.formula(paste("~", sample_var)))
+    p <- p + ggplot2::facet_wrap(stats::as.formula(paste("~", group_var)))
   } else {
     warning(
       "view_type = \"together\" draws every group into the same radial band, ",
@@ -382,6 +387,13 @@ plot_ordi_star_iris <- function(physeq, sample_var, taxa_rank = "Phylum", n_taxa
     label_color = label_color,
     r_max = r_inner
   )
+
+  attr(p, "ordination") <- ord
+  attr(p, "scores") <- axes$scores
+  attr(p, "taxa_names") <- top_taxa
+  if (verbose) {
+    message("Attached attributes: access ordination via attr(plot, \"ordination\"), site scores via attr(plot, \"scores\"), and plotted taxa via attr(plot, \"taxa_names\").")
+  }
 
   return(p)
 }

@@ -6,7 +6,7 @@
 \usage{
 plot_ordi_star(
   physeq,
-  sample_var,
+  group_var,
   colors_all,
   method = "PCoA",
   view_type = "together",
@@ -27,7 +27,7 @@ plot_ordi_star(
 \arguments{
 \item{physeq}{A phyloseq object containing your microbiome data.}
 
-\item{sample_var}{A character string. The name of the column in your sample data
+\item{group_var}{A character string. The name of the column in your sample data
 to use for grouping samples (e.g., "location", "treatment").}
 
 \item{colors_all}{Optional. A character vector of colors, or "hclust" for automatic clustering colors.}
@@ -78,7 +78,9 @@ ggplot2 theme default without overriding font family.}
 and labels (default \code{"black"}).}
 }
 \value{
-A ggplot object representing the star plot of group ordination centres.
+A ggplot object representing the star plot of group ordination
+centres, with the ordination object attached as \code{attr(plot, "ordination")}
+and extracted site scores as \code{attr(plot, "scores")}.
 }
 \description{
 Runs an ordination (PCoA by default) on a beta-diversity distance matrix and
@@ -112,7 +114,7 @@ ordination object via \code{ord}.
 data("cassiopea_ps")
 plot_ordi_star(
   physeq = cassiopea_ps,
-  sample_var = "Body_cav",
+  group_var = "Body_cav",
   distance = "bray",
   view_type = "together",
   error_bar = "SE"

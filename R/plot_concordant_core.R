@@ -6,18 +6,20 @@
 #' @param physeq A phyloseq object.
 #' @param group_var A character string. The name of the column to use for grouping.
 #' @param percent_samples The proportion of samples within a group that a taxon
-#'   must be present in to be considered "core". Given either as a proportion in
-#'   (0, 1] or as a percentage in (1, 100]; the interpretation chosen is
-#'   reported, because a bare `1` means 100%, not 1%.
+#'   must be present in to be considered "core" (default `0.95`). Given either
+#'   as a proportion in (0, 1] or as a percentage in (1, 100]; the
+#'   interpretation chosen is reported, because a bare `1` means 100%, not 1%.
 #' @param abundance_threshold A numeric value (default 0). The abundance a taxon
 #'   must **exceed** in a sample for that sample to count as present.
 #' @param abundance_type Either "counts" (default) or "relative"; see [coreselect()].
-#' @param taxa_rank A character string. The taxonomic rank to use (e.g., "Genus").
-#' @param samplecolumn A character string. The name of the sample ID column.
+#' @param taxa_rank A character string specifying the taxonomic rank to use
+#'   (e.g., `"Family"`, `"Genus"`), or `"OTU"` (default) for unaggregated taxa.
+#' @param samplecolumn Optional character string naming the sample ID column. If
+#'   `NULL` (default), uses `"Sample"` from `phyloseq::psmelt()`.
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
 #' @param group_subset A character vector specifying which groups to include (if NULL, all are used).
-#' @param verbose Logical. If TRUE (default), report the resolved thresholds and
-#'   the size of each group's core.
+#' @param verbose Logical. If TRUE (default), report the resolved thresholds,
+#'   the size of each group's core, and attribute access instructions.
 #' @param axis_label_pos Character. Position of concentric-circle tick labels:
 #'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
 #'   position on each concentric circle), or `"none"` (hidden).
@@ -32,8 +34,9 @@
 #' @param ... Additional arguments passed to `plot_taxa_star`, e.g. "colors_all".
 #'
 #' @return A ggplot object representing the star plot of concordant core taxa,
-#'   with the shared core attached as the "concordant_core" attribute and the
-#'   per-group core sizes as the "core_sizes" attribute.
+#'   with the shared core attached as `attr(plot, "concordant_core")`, the
+#'   per-group core sizes as `attr(plot, "core_sizes")`, and per-group
+#'   prevalences as `attr(plot, "prevalence")`.
 #'
 #' @import phyloseq
 #' @import ggplot2
@@ -48,15 +51,14 @@
 #'   group_var = "Body_cav",
 #'   percent_samples = 0.5,
 #'   taxa_rank = "Family",
-#'   samplecolumn = "Sample_NAME",
 #'   group_subset = c("Bell", "GVC"),
 #'   max_taxa = 3
 #' )
-plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_threshold = 0,
-                                 abundance_type = c("counts", "relative"), taxa_rank, samplecolumn,
-                                 log_scale = FALSE, group_subset = NULL, verbose = TRUE,
-                                 axis_label_pos = c("side", "middle", "none"), font = NULL,
-                                 label_color = "black", max_taxa = 5, ...) {
+plot_concordant_core <- function(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0,
+                                 abundance_type = c("counts", "relative"), taxa_rank = "OTU",
+                                 samplecolumn = NULL, log_scale = FALSE, group_subset = NULL,
+                                 verbose = TRUE, axis_label_pos = c("side", "middle", "none"),
+                                 font = NULL, label_color = "black", max_taxa = 5, ...) {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
@@ -100,9 +102,11 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
         physeq_glom <- agg_taxa(physeq, rank = taxa_rank)
     } else {
         physeq_glom <- physeq
+        if (verbose) message("Taxa not aggregated. Using OTUs.")
     }
 
     core_list <- list()
+    prevalence_list <- list()
 
     for (g in groups) {
         samples_in_group <- rownames(sample_data_df)[sample_data_df[[group_var]] == g]
@@ -118,6 +122,7 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
             abundance_threshold = abundance_threshold,
             abundance_type = abundance_type
         )
+        prevalence_list[[as.character(g)]] <- prevalence_prop
 
         core_taxa <- names(prevalence_prop)[prevalence_prop >= percent_samples]
         core_list[[as.character(g)]] <- core_taxa
@@ -169,6 +174,10 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
         }
         attr(p, "concordant_core") <- character(0)
         attr(p, "core_sizes") <- core_sizes
+        attr(p, "prevalence") <- prevalence_list
+        if (verbose) {
+            message("Attached attributes: access shared core taxa via attr(plot, \"concordant_core\"), core sizes via attr(plot, \"core_sizes\"), and per-group prevalences via attr(plot, \"prevalence\").")
+        }
         return(p)
     }
 
@@ -212,11 +221,12 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
 
     p <- plot_taxa_star(
         physeq = physeq_plot,
-        sample_var = group_var,
+        group_var = group_var,
         taxa_rank = taxa_rank,
         taxa_names = concordant_core,
         samplecolumn = samplecolumn,
         log_scale = log_scale,
+        verbose = FALSE,
         axis_label_pos = axis_label_pos,
         font = font,
         label_color = label_color,
@@ -225,6 +235,10 @@ plot_concordant_core <- function(physeq, group_var, percent_samples, abundance_t
 
     attr(p, "concordant_core") <- concordant_core
     attr(p, "core_sizes") <- core_sizes
+    attr(p, "prevalence") <- prevalence_list
+    if (verbose) {
+        message("Attached attributes: access shared core taxa via attr(plot, \"concordant_core\"), core sizes via attr(plot, \"core_sizes\"), and per-group prevalences via attr(plot, \"prevalence\").")
+    }
 
     return(p)
 }

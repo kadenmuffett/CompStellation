@@ -6,17 +6,18 @@
 \usage{
 plot_taxa_star(
   physeq,
-  sample_var,
+  group_var,
   taxa_rank = "OTU",
   taxa_names = NULL,
   colors_all,
-  samplecolumn,
+  samplecolumn = NULL,
   view_type = "separate",
   error_bar = "IQR",
   fill_alpha = 0.2,
   log_scale = FALSE,
   plot_order = NULL,
   base_colors = NULL,
+  verbose = TRUE,
   show_caption = FALSE,
   axis_label_pos = c("side", "middle", "none"),
   font = NULL,
@@ -24,20 +25,22 @@ plot_taxa_star(
 )
 }
 \arguments{
-\item{physeq}{A phyloseq object containing your microbiome data.}
+\item{physeq}{A phyloseq object or wide data frame containing your microbiome data.}
 
-\item{sample_var}{A character string. The name of the column in your sample data
-to use for faceting (e.g., "location", "treatment").}
+\item{group_var}{A character string. The name of the column in your sample data
+to use for grouping/faceting (e.g., "location", "treatment").}
 
 \item{taxa_rank}{A character string. The taxonomic rank you are providing taxa
-names for (e.g., "Phylum", "Genus").}
+names for (e.g., "Phylum", "Genus"), or "OTU" (default) for unaggregated taxa.}
 
-\item{taxa_names}{A character vector containing the names of the three specific
-taxa you want to plot. If NULL (default), the top 4 most abundant taxa are selected.}
+\item{taxa_names}{A character vector containing the names of the specific
+taxa you want to plot (fewer than 8). If NULL (default), the top 4 most abundant taxa are selected.}
 
 \item{colors_all}{Optional. A character vector of colors, or "hclust" for automatic clustering colors.}
 
-\item{samplecolumn}{This is the ID column for your samples.}
+\item{samplecolumn}{Optional character string naming the sample ID column. If
+\code{NULL} (default), uses \code{"Sample"} from \code{phyloseq::psmelt()} (or row names
+when \code{physeq} is a data frame).}
 
 \item{view_type}{A character string, either "separate" (default) or "together".
 Determines whether groups are plotted on the same plot or faceted.}
@@ -53,11 +56,14 @@ Controls the transparency of the polygon fill under the star plot.}
 
 \item{log_scale}{A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.}
 
-\item{plot_order}{A character vector for custom ordering of the sample variable,
+\item{plot_order}{A character vector for custom ordering of the grouping variable,
 "hclust" for complete-linkage clustering on Bray-Curtis distances between the
 group mean abundances, or NULL (default) for alphabetical.}
 
 \item{base_colors}{Optional. A character vector of base colors to use for hclust coloring.}
+
+\item{verbose}{Logical. If TRUE (default), report aggregation, taxon selection,
+and attribute access instructions.}
 
 \item{show_caption}{Logical. If FALSE (default), omits the explanatory caption below the plot.}
 
@@ -73,7 +79,8 @@ ggplot2 theme default without overriding font family.}
 and labels (default \code{"black"}).}
 }
 \value{
-A ggplot object representing the star plot.
+A ggplot object representing the star plot, with the plotted taxon
+names attached as \code{attr(plot, "taxa_names")}.
 }
 \description{
 This function generates a star (radar) plot showing the relative abundance
@@ -95,9 +102,8 @@ with "Other" last.
 data("cassiopea_ps")
 plot_taxa_star(
   physeq = cassiopea_ps,
-  sample_var = "Body_cav",
+  group_var = "Body_cav",
   taxa_rank = "Phylum",
-  samplecolumn = "Sample_NAME",
   view_type = "separate",
   error_bar = "SE"
 )

@@ -4,10 +4,10 @@
 utils::globalVariables(c(
   ".ring_label", ".ring_y",
   "Abundance", "Axis", "Axis_numeric", "Center_Abundance", "Center_Position",
-  "cum_abundance", "Group", "mean_Abundance", "Mean_Position",
+  "Core_Taxa", "cum_abundance", "Group", "mean_Abundance", "Mean_Position",
   "median_Abundance", "Median_Position", "N_ring_samples", "N_samples",
   "poly_group", "poly_x", "poly_y", "Q25_Abundance", "Q25_Position",
   "Q75_Abundance", "Q75_Position", "Sample", "sample_idx", "SE_Abundance",
   "SE_Max", "SE_Min", "SE_Position", "sum_Abundance", "Taxa_Group", "Taxon",
-  "total", "TotalAbundance", "Value", "width", "x_pos"
+  "Threshold", "total", "TotalAbundance", "Value", "width", "x_pos"
 ))

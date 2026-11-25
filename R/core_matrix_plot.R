@@ -15,18 +15,20 @@
 #' @param physeq A phyloseq object.
 #' @param group_var A character string. The name of the column to use for grouping.
 #' @param percent_samples The proportion of samples within a group that a taxon
-#'   must be present in to be considered "core". Given either as a proportion in
-#'   (0, 1] or as a percentage in (1, 100]; the interpretation chosen is
-#'   reported, because a bare `1` means 100%, not 1%.
+#'   must be present in to be considered "core" (default `0.95`). Given either
+#'   as a proportion in (0, 1] or as a percentage in (1, 100]; the
+#'   interpretation chosen is reported, because a bare `1` means 100%, not 1%.
 #' @param abundance_threshold A numeric value (default 0). The abundance a taxon
 #'   must **exceed** in a sample for that sample to count as present.
 #' @param abundance_type Either "counts" (default) or "relative"; see [coreselect()].
-#' @param taxa_rank A character string. The taxonomic rank to use (e.g., "Genus").
-#' @param samplecolumn A character string. The name of the sample ID column.
+#' @param taxa_rank A character string specifying the taxonomic rank to use
+#'   (e.g., `"Family"`, `"Genus"`), or `"OTU"` (default) for unaggregated taxa.
+#' @param samplecolumn Optional character string naming the sample ID column. If
+#'   `NULL` (default), uses `"Sample"` from `phyloseq::psmelt()`.
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
 #' @param group_subset A character vector specifying which groups to include (if NULL, all are used).
-#' @param verbose Logical. If TRUE (default), report the resolved thresholds and
-#'   the size of each group's core.
+#' @param verbose Logical. If TRUE (default), report the resolved thresholds,
+#'   the size of each group's core, and attribute access instructions.
 #' @param axis_label_pos Character. Position of concentric-circle tick labels:
 #'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
 #'   position on each concentric circle), or `"none"` (hidden).
@@ -35,11 +37,13 @@
 #'   ggplot2 theme default without overriding font family.
 #' @param label_color Character string specifying the color for all plot text
 #'   and labels (default `"black"`).
+#' @param max_taxa Integer between 1 and 8 specifying the maximum number of
+#'   unique core taxa per group to display as spokes (default `4`).
 #' @param ... Additional arguments, e.g. "colors_all" passed to `plot_taxa_star`.
 #'
 #' @return A patchwork object containing the matrix of plots, with the unique
-#'   core memberships attached as the "unique_core" attribute and the per-group
-#'   prevalence of those taxa as the "prevalence" attribute.
+#'   core memberships attached as `attr(plot, "unique_core")` and the per-group
+#'   prevalences as `attr(plot, "prevalence")`.
 #'
 #' @import phyloseq
 #' @import ggplot2
@@ -55,20 +59,23 @@
 #'   group_var = "Body_cav",
 #'   percent_samples = 0.85,
 #'   taxa_rank = "Family",
-#'   samplecolumn = "Sample_NAME",
 #'   group_subset = c("Sub", "WTR"),
 #'   log_scale = TRUE
 #' )
-plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_threshold = 0,
-                             abundance_type = c("counts", "relative"), taxa_rank, samplecolumn,
-                             log_scale = FALSE, group_subset = NULL, verbose = TRUE,
-                             axis_label_pos = c("side", "middle", "none"), font = NULL,
-                             label_color = "black", ...) {
+plot_core_matrix <- function(physeq, group_var, percent_samples = 0.95, abundance_threshold = 0,
+                             abundance_type = c("counts", "relative"), taxa_rank = "OTU",
+                             samplecolumn = NULL, log_scale = FALSE, group_subset = NULL,
+                             verbose = TRUE, axis_label_pos = c("side", "middle", "none"),
+                             font = NULL, label_color = "black", max_taxa = 4, ...) {
     # --- 1. Input Validation ---
 
     if (!inherits(physeq, "phyloseq")) {
         stop("'physeq' must be a VALID phyloseq object.", call. = FALSE)
     }
+    if (!is.numeric(max_taxa) || length(max_taxa) != 1L || is.na(max_taxa) || max_taxa < 1 || max_taxa > 8) {
+        stop("'max_taxa' must be a single number between 1 and 8.", call. = FALSE)
+    }
+    max_taxa <- as.integer(max_taxa)
 
     abundance_type <- match.arg(abundance_type)
     axis_label_pos <- match.arg(axis_label_pos)
@@ -112,6 +119,7 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
         physeq_glom <- agg_taxa(physeq, rank = taxa_rank)
     } else {
         physeq_glom <- physeq
+        if (verbose) message("Taxa not aggregated. Using OTUs.")
     }
 
     core_list <- list()
@@ -173,13 +181,14 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
         if (n_unique < 3) {
             warning("Group ", g, " has fewer than 3 unique core taxa (", n_unique,
                     "). Plot might look sparse.", call. = FALSE)
-        } else if (n_unique > 3) {
-            # Keep the 3 most abundant rather than whichever happened to come
+        }
+        if (n_unique > max_taxa) {
+            # Keep the max_taxa most abundant rather than whichever happened to come
             # first in the taxonomy table
             samples_in_g <- rownames(sample_data_df)[sample_data_df[[group_var]] == g]
-            u_core <- order_taxa_by_abundance(physeq_glom, u_core, samples = samples_in_g)[1:3]
-            warning("Group ", g, " has more than 3 unique core taxa (", n_unique,
-                    "). Keeping the 3 with the highest mean relative abundance in this group.",
+            u_core <- order_taxa_by_abundance(physeq_glom, u_core, samples = samples_in_g)[seq_len(max_taxa)]
+            warning("Group ", g, " has more than ", max_taxa, " unique core taxa (", n_unique,
+                    "). Keeping the ", max_taxa, " with the highest mean relative abundance in this group.",
                     call. = FALSE)
             n_unique <- length(u_core)
         }
@@ -204,11 +213,12 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
             # after the global y-scale limits are set below.
             p <- plot_taxa_star(
                 physeq = phyloseq::prune_samples(samples_evaluated, physeq),
-                sample_var = group_var,
+                group_var = group_var,
                 taxa_rank = taxa_rank,
                 taxa_names = u_core,
                 samplecolumn = samplecolumn,
                 log_scale = log_scale,
+                verbose = FALSE,
                 axis_label_pos = "side",
                 font = font,
                 label_color = label_color,
@@ -294,6 +304,9 @@ plot_core_matrix <- function(physeq, group_var, percent_samples, abundance_thres
     # each "unique" call can be checked rather than taken on trust.
     attr(final_plot, "unique_core") <- unique_core_list
     attr(final_plot, "prevalence") <- prevalence_list
+    if (verbose) {
+        message("Attached attributes: access unique core memberships via attr(plot, \"unique_core\") and per-group prevalences via attr(plot, \"prevalence\").")
+    }
 
     return(final_plot)
 }

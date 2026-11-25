@@ -25,7 +25,7 @@
 #' ordination object via `ord`.
 #'
 #' @param physeq A phyloseq object containing your microbiome data.
-#' @param sample_var A character string. The name of the column in your sample data
+#' @param group_var A character string. The name of the column in your sample data
 #'   to use for grouping samples (e.g., "location", "treatment").
 #' @param colors_all Optional. A character vector of colors, or "hclust" for automatic clustering colors.
 #' @param method A character string specifying the ordination method (default "PCoA").
@@ -60,7 +60,9 @@
 #' @param label_color Character string specifying the color for all plot text
 #'   and labels (default `"black"`).
 #'
-#' @return A ggplot object representing the star plot of group ordination centres.
+#' @return A ggplot object representing the star plot of group ordination
+#'   centres, with the ordination object attached as `attr(plot, "ordination")`
+#'   and extracted site scores as `attr(plot, "scores")`.
 #'
 #' @import phyloseq
 #' @import ggplot2
@@ -75,19 +77,19 @@
 #' data("cassiopea_ps")
 #' plot_ordi_star(
 #'   physeq = cassiopea_ps,
-#'   sample_var = "Body_cav",
+#'   group_var = "Body_cav",
 #'   distance = "bray",
 #'   view_type = "together",
 #'   error_bar = "SE"
 #' )
-plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = "bray", ord = NULL, plot_order = NULL, n_axes = 5, base_colors = NULL, verbose = TRUE, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
+plot_ordi_star <- function(physeq, group_var, colors_all, method = "PCoA", view_type = "together", error_bar = "IQR", fill_alpha = 0.2, distance = "bray", ord = NULL, plot_order = NULL, n_axes = 5, base_colors = NULL, verbose = TRUE, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
   # --- 1. Input Validation ---
   if (!inherits(physeq, "phyloseq")) {
     stop("'physeq' must be a VALID phyloseq object.", call. = FALSE)
   }
-  if (!sample_var %in% phyloseq::sample_variables(physeq)) {
+  if (!group_var %in% phyloseq::sample_variables(physeq)) {
     stop(
-      "'", sample_var, "' is not a sample variable in the phyloseq object. Available: ",
+      "'", group_var, "' is not a sample variable in the phyloseq object. Available: ",
       paste(phyloseq::sample_variables(physeq), collapse = ", "), ".",
       call. = FALSE
     )
@@ -156,7 +158,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     tidyr::pivot_longer(cols = tidyselect::all_of(axis_labels), names_to = "Axis", values_to = "Value")
 
   pcoa_stats <- pcoa_long_raw %>%
-    group_by(!!rlang::sym(sample_var), Axis) %>%
+    group_by(!!rlang::sym(group_var), Axis) %>%
     summarise(
       N_samples = sum(!is.na(Value)),
       Mean_Position = mean(Value, na.rm = TRUE),
@@ -181,7 +183,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
 
   # Groups of one have no spread to show; say so rather than dropping the bar
   if (error_bar != "none") {
-    thin <- unique(as.character(pcoa_stats[[sample_var]][pcoa_stats$N_samples < 2]))
+    thin <- unique(as.character(pcoa_stats[[group_var]][pcoa_stats$N_samples < 2]))
     if (length(thin) > 0) {
       warning(
         "No interval can be drawn for group(s) with a single sample: ",
@@ -197,7 +199,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   # arrive sorted alphabetically by label, which stops matching the axis numbers
   # at ten or more axes ("Axis 10" sorts before "Axis 2").
   pcoa_stats$Axis <- factor(pcoa_stats$Axis, levels = axis_labels)
-  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!rlang::sym(sample_var), Axis)
+  pcoa_stats <- pcoa_stats %>% dplyr::arrange(!!rlang::sym(group_var), Axis)
 
   # --- 3b. Plot Ordering ---
   # Ordination scores are Euclidean by construction, and are signed. Bray-Curtis
@@ -205,17 +207,17 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   # here; Euclidean distance is, and it is unaffected by the radial offset.
   group_centres <- function() {
     pcoa_stats %>%
-      dplyr::select(!!rlang::sym(sample_var), Axis, Center_Position) %>%
+      dplyr::select(!!rlang::sym(group_var), Axis, Center_Position) %>%
       tidyr::pivot_wider(names_from = Axis, values_from = Center_Position, values_fill = list(Center_Position = 0))
   }
 
   cluster_groups <- function(wide_df) {
     dist_mat <- stats::dist(
-      as.matrix(wide_df %>% dplyr::select(-!!rlang::sym(sample_var))),
+      as.matrix(wide_df %>% dplyr::select(-!!rlang::sym(group_var))),
       method = "euclidean"
     )
     hc <- stats::hclust(dist_mat, method = "complete")
-    hc$labels <- as.character(wide_df[[sample_var]])
+    hc$labels <- as.character(wide_df[[group_var]])
     hc
   }
 
@@ -228,10 +230,10 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
       hc <- cluster_groups(wide_df)
       ordered_groups <- hc$labels[hc$order]
 
-      pcoa_stats[[sample_var]] <- factor(pcoa_stats[[sample_var]], levels = ordered_groups)
+      pcoa_stats[[group_var]] <- factor(pcoa_stats[[group_var]], levels = ordered_groups)
     } else {
       # Custom order provided by user
-      pcoa_stats[[sample_var]] <- factor(pcoa_stats[[sample_var]], levels = plot_order)
+      pcoa_stats[[group_var]] <- factor(pcoa_stats[[group_var]], levels = plot_order)
     }
   }
 
@@ -239,10 +241,10 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
 
   # Handle default colors if missing
   if (missing(colors_all) || is.null(colors_all) || (length(colors_all) == 1 && colors_all == "hclust")) {
-    if (is.factor(pcoa_stats[[sample_var]])) {
-      groups <- levels(pcoa_stats[[sample_var]])
+    if (is.factor(pcoa_stats[[group_var]])) {
+      groups <- levels(pcoa_stats[[group_var]])
     } else {
-      groups <- as.character(unique(pcoa_stats[[sample_var]]))
+      groups <- as.character(unique(pcoa_stats[[group_var]]))
     }
 
     if (!missing(colors_all) && !is.null(colors_all) && colors_all == "hclust") {
@@ -280,8 +282,8 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   label_fn <- function(x) sprintf("%.2f", x - y_offset)
 
   star_plot <- ggplot(pcoa_stats, aes(
-    x = Axis, y = Center_Position, group = !!rlang::sym(sample_var),
-    color = !!rlang::sym(sample_var), fill = !!rlang::sym(sample_var)
+    x = Axis, y = Center_Position, group = !!rlang::sym(group_var),
+    color = !!rlang::sym(group_var), fill = !!rlang::sym(group_var)
   )) +
     geom_polygon(aes(), linewidth = 0.8, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +
@@ -312,8 +314,8 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
       title = paste0(center_label, " ", method, " Position (First ", n_axes, " Axes)", title_suffix),
       x = "",
       y = paste0(center_label, " Score"),
-      color = sample_var,
-      fill = sample_var,
+      color = group_var,
+      fill = group_var,
       caption = caption_text
     ) +
     coord_radar(clip = "off") # Uses the function from utils-radar.R
@@ -332,7 +334,7 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
   }
 
   if (view_type == "separate") {
-    star_plot <- star_plot + facet_wrap(as.formula(paste("~", sample_var)))
+    star_plot <- star_plot + facet_wrap(as.formula(paste("~", group_var)))
   }
 
   star_plot <- apply_radial_labels(
@@ -342,6 +344,12 @@ plot_ordi_star <- function(physeq, sample_var, colors_all, method = "PCoA", view
     font = font,
     label_color = label_color
   )
+
+  attr(star_plot, "ordination") <- ord
+  attr(star_plot, "scores") <- axes$scores
+  if (verbose) {
+    message("Attached attributes: access ordination via attr(plot, \"ordination\") and site scores via attr(plot, \"scores\").")
+  }
 
   return(star_plot)
 }

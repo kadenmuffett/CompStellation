@@ -31,7 +31,7 @@ remotes::install_github("kadenmuffett/CompStellation")
 All six exported functions accept a `phyloseq` object (from the Bioconductor `phyloseq` package), which bundles three aligned tables:
 - **`otu_table`**: A numeric matrix of read counts or relative abundances (taxa as rows or columns, identified by `taxa_are_rows`).
 - **`tax_table`**: A character matrix mapping each taxon/ASV ID (rownames) to hierarchical taxonomic ranks (columns such as `"Kingdom"`, `"Phylum"`, `"Class"`, `"Order"`, `"Family"`, `"Genus"`).
-- **`sample_data`**: A data frame of sample metadata where rownames match the sample IDs in the `otu_table`, containing grouping columns (`sample_var` / `group_var`) and a sample identifier column (`samplecolumn`).
+- **`sample_data`**: A data frame of sample metadata where rownames match the sample IDs in the `otu_table`, containing grouping columns (`group_var`) and an optional sample identifier column (`samplecolumn`).
 
 To build a `phyloseq` object from your own count matrix (`counts_mat`), taxonomy matrix (`tax_mat`), and metadata data frame (`meta_df`):
 
@@ -71,7 +71,7 @@ ps_from_df <- vegan_to_phyloseq(
 # Or pass the wide data.frame directly to plot_taxa_star()
 plot_taxa_star(
   physeq       = df_example,
-  sample_var   = "Habitat",
+  group_var    = "Habitat",
   samplecolumn = "SampleID",
   taxa_rank    = "Class",
   taxa_names   = c("Bacteroidia", "Clostridia", "Gammaprot")
@@ -97,9 +97,8 @@ data("cassiopea_ps")
 # Plot top 4 phyla across Cassiopea body compartments and environment
 p_taxa <- plot_taxa_star(
   physeq         = cassiopea_ps,
-  sample_var     = "Body_cav",
+  group_var      = "Body_cav",
   taxa_rank      = "Phylum",
-  samplecolumn   = "Sample_NAME",
   error_bar      = "SE",
   plot_order     = "hclust",
   axis_label_pos = "side",   # "side" (default), "middle" (12 o'clock), or "none"
@@ -128,7 +127,7 @@ While the distance defaults to bray, this may not be appropriate. Similarly, the
 # Overlaid on a single radar
 p_ordi_tog <- plot_ordi_star(
   physeq     = cassiopea_ps,
-  sample_var = "Body_cav",
+  group_var  = "Body_cav",
   distance   = "bray",
   view_type  = "together",
   error_bar  = "IQR"
@@ -142,7 +141,7 @@ print(p_ordi_tog)
 # Faceted (one panel per group) with hierarchical clustering order
 p_ordi_sep <- plot_ordi_star(
   physeq     = cassiopea_ps,
-  sample_var = "Body_cav",
+  group_var  = "Body_cav",
   distance   = "bray",
   view_type  = "separate",
   plot_order = "hclust"
@@ -169,7 +168,7 @@ Places the `plot_ordi_star()` radar at the centre of a circular stacked bar char
 ```r
 p_iris <- plot_ordi_star_iris(
   physeq     = cassiopea_ps,
-  sample_var = "Body_cav",
+  group_var  = "Body_cav",
   taxa_rank  = "Phylum",
   distance   = "bray",
   view_type  = "separate"
@@ -198,7 +197,7 @@ lapply(attr(p_core_dots, "core_list"), head)
 ![](man/figures/readme_coreselect.png)
 
 ### 5. `plot_core_matrix()`
-Identifies the **unique core** for each group (taxa in that group's core but absent from the core of all other evaluated groups; capped at the 3 most abundant unique core taxa per group) and generates a matrix of star plots where columns are each group's unique core and rows show how those taxa behave across every evaluated group.
+Identifies the **unique core** for each group (taxa in that group's core but absent from the core of all other evaluated groups; capped at `max_taxa`, default 4 most abundant unique core taxa per group) and generates a matrix of star plots where columns are each group's unique core and rows show how those taxa behave across every evaluated group.
 Conceptually, this shows you the abundance of taxa that are core within treatment groups A | B | C, but no taxa in the 'core' of multiple treatments. The VERTICAL is the unique taxa from treatment X, the HORIZONTAL is the average abundance of that set of taxa in each category. 
 
 
@@ -209,8 +208,8 @@ p_core_mat <- plot_core_matrix(
   percent_samples     = 0.85,
   abundance_threshold = 0,
   taxa_rank           = "Family",
-  samplecolumn        = "Sample_NAME",
   group_subset        = c("Sub", "WTR"),
+  max_taxa            = 3,
   log_scale           = TRUE
 )
 print(p_core_mat)
@@ -231,7 +230,6 @@ p_concordant <- plot_concordant_core(
   percent_samples     = 0.5,
   abundance_threshold = 0,
   taxa_rank           = "Family",
-  samplecolumn        = "Sample_NAME",
   group_subset        = c("Bell", "GVC"),
   max_taxa            = 3
 )
@@ -271,9 +269,8 @@ data("cassiopea_ps")
 # incredibly strange aesthetic choices
 p_taxa_2 <- plot_taxa_star(
   physeq         = cassiopea_ps,
-  sample_var     = "Body_cav",
+  group_var      = "Body_cav",
   taxa_rank      = "Phylum",
-  samplecolumn   = "Sample_NAME",
   error_bar      = "none",
   axis_label_pos = "middle",   # "side" (default), "middle" (12 o'clock), or "none"
   label_color    = "orange",
@@ -290,9 +287,8 @@ print(p_taxa_2)
 ```r
 p_taxa_3 <- plot_taxa_star(
   physeq         = cassiopea_ps,
-  sample_var     = "Body_cav",
+  group_var      = "Body_cav",
   taxa_rank      = "Phylum",
-  samplecolumn   = "Sample_NAME",
   error_bar      = "SE",
   show_caption   = TRUE,
   axis_label_pos = "middle",   # "side" (default), "middle" (12 o'clock), or "none"

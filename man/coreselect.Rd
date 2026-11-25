@@ -10,6 +10,7 @@ coreselect(
   percent_samples = 0.95,
   abundance_threshold = 0,
   abundance_type = c("counts", "relative"),
+  taxa_rank = "OTU",
   verbose = TRUE,
   font = NULL,
   label_color = "black"
@@ -36,6 +37,10 @@ applied to the abundances as supplied) or "relative" (each sample is
 converted to proportions first, so \code{abundance_threshold} is a relative
 abundance).}
 
+\item{taxa_rank}{A character string specifying the taxonomic rank to
+aggregate to before identifying core taxa (e.g., \code{"Family"}, \code{"Genus"}),
+or \code{"OTU"} (default) to evaluate unaggregated taxa.}
+
 \item{verbose}{Logical. If TRUE (default), report the resolved thresholds.}
 
 \item{font}{Optional character string specifying the font family for plot
@@ -46,8 +51,9 @@ ggplot2 theme default without overriding font family.}
 and labels (default \code{"black"}).}
 }
 \value{
-A ggplot object representing the core taxa presence/absence plot.
-The core taxa themselves are attached as the "core_list" attribute.
+A ggplot object representing the core taxa presence/absence plot,
+with core taxon memberships attached as \code{attr(plot, "core_list")} and
+per-group taxon prevalences as \code{attr(plot, "prevalence")}.
 }
 \description{
 This function identifies "core" taxa within treatment groups ( taxa

@@ -26,7 +26,7 @@ The `CompStellation` package provides interpretable star (radar) plots for compo
 All six exported functions work with `phyloseq` objects from the Bioconductor `phyloseq` package. A `phyloseq` object combines three aligned tables:
 - **`otu_table`**: A numeric matrix of read counts or relative abundances (with taxa as rows or columns).
 - **`tax_table`**: A character matrix mapping each taxon ID (rownames) to taxonomic ranks (`"Kingdom"`, `"Phylum"`, `"Class"`, `"Order"`, `"Family"`, `"Genus"`, `"Species"`). Unclassified or placeholder labels (`NA`, `"unclassified"`, `"g__"`, `"Incertae Sedis"`, etc.) are automatically filled from the nearest classified higher rank when aggregating via `CompStellation`'s internal heuristic.
-- **`sample_data`**: A data frame of sample metadata whose rownames match the sample names in the `otu_table`, containing at least a grouping column (`sample_var` / `group_var`) and a sample identifier column (`samplecolumn`).
+- **`sample_data`**: A data frame of sample metadata whose rownames match the sample names in the `otu_table`, containing at least a grouping column (`group_var`) and an optional sample identifier column (`samplecolumn`).
 
 To construct a `phyloseq` object from standard R tables:
 
@@ -68,7 +68,7 @@ ps_from_df <- vegan_to_phyloseq(
 # Or pass the wide data.frame directly to plot_taxa_star()
 plot_taxa_star(
     physeq       = df_example,
-    sample_var   = "Habitat",
+    group_var    = "Habitat",
     samplecolumn = "SampleID",
     taxa_rank    = "Class",
     taxa_names   = c("Bacteroidia", "Clostridia", "Gammaprot")
@@ -100,9 +100,8 @@ cassiopea_ps
 # Plot the top 4 most abundant orders by compartment (Body_cav)
 taxa_plot <- plot_taxa_star(
     physeq         = cassiopea_ps,
-    sample_var     = "Body_cav",
+    group_var      = "Body_cav",
     taxa_rank      = "Order",
-    samplecolumn   = "Sample_NAME",
     error_bar      = "SE",
     plot_order     = "hclust",
     axis_label_pos = "side",   # "side" (default), "middle" (12 o'clock), or "none"
@@ -122,7 +121,7 @@ Individual samples are not drawn, and this plot carries no taxonomic information
 # One panel per group
 plot_ordi_star(
     physeq     = cassiopea_ps,
-    sample_var = "Body_cav",
+    group_var  = "Body_cav",
     distance   = "bray",
     view_type  = "separate"
 )
@@ -130,7 +129,7 @@ plot_ordi_star(
 # All groups overlaid on one radar
 pcoa_plot <- plot_ordi_star(
     physeq     = cassiopea_ps,
-    sample_var = "Body_cav",
+    group_var  = "Body_cav",
     distance   = "bray",
     view_type  = "together"
 )
@@ -152,7 +151,7 @@ This places the `plot_ordi_star()` radar at the centre of a circular stacked bar
 ```{r pcoa-iris, eval=FALSE}
 plot_ordi_star_iris(
     physeq     = cassiopea_ps,
-    sample_var = "Body_cav",
+    group_var  = "Body_cav",
     taxa_rank  = "Phylum",
     distance   = "bray",
     view_type  = "separate"

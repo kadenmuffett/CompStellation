@@ -368,3 +368,83 @@ test_that("vegan_to_phyloseq converts combined or separate vegan tables to phylo
   p <- suppressMessages(plot_taxa_star(ps1, "Habitat", taxa_rank = "Genus", samplecolumn = "SampleID"))
   expect_s3_class(p, "ggplot")
 })
+
+test_that("unified defaults (group_var, samplecolumn = NULL, taxa_rank = 'OTU', percent_samples = 0.95, max_taxa = 4) and attached attributes work", {
+  sim <- make_sim()
+
+  # 1. plot_taxa_star with samplecolumn = NULL (omitted), group_var named, and attached taxa_names
+  expect_message(
+    p_ts <- plot_taxa_star(sim, group_var = "Group"),
+    'attr\\(plot, "taxa_names"\\)'
+  )
+  expect_s3_class(p_ts, "ggplot")
+  expect_type(attr(p_ts, "taxa_names"), "character")
+  expect_length(attr(p_ts, "taxa_names"), 4)
+
+  # 2. plot_ordi_star with group_var named and attached ordination + scores
+  expect_message(
+    p_os <- plot_ordi_star(sim, group_var = "Group"),
+    'attr\\(plot, "ordination"\\)'
+  )
+  expect_false(is.null(attr(p_os, "ordination")))
+  expect_true(is.matrix(attr(p_os, "scores")))
+
+  # 3. plot_ordi_star_iris defaults to taxa_rank = "OTU" and attaches ordination, scores, taxa_names
+  expect_message(
+    p_iris <- plot_ordi_star_iris(sim, group_var = "Group", distance = "bray"),
+    'attr\\(plot, "taxa_names"\\)'
+  )
+  expect_false(is.null(attr(p_iris, "ordination")))
+  expect_true(is.matrix(attr(p_iris, "scores")))
+  expect_length(attr(p_iris, "taxa_names"), 5)
+
+  # 4. coreselect attaches both core_list and prevalence and prints access instructions
+  expect_message(
+    p_cs <- suppressWarnings(coreselect(sim, group_var = "Group")),
+    'attr\\(plot, "prevalence"\\)'
+  )
+  expect_type(attr(p_cs, "core_list"), "list")
+  expect_type(attr(p_cs, "prevalence"), "list")
+
+  # 5. plot_core_matrix defaults to percent_samples = 0.95, taxa_rank = "OTU", samplecolumn = NULL, max_taxa = 4
+  expect_message(
+    p_cm <- suppressWarnings(plot_core_matrix(sim, group_var = "Group")),
+    'attr\\(plot, "unique_core"\\)'
+  )
+  expect_s3_class(p_cm, "patchwork")
+  expect_type(attr(p_cm, "unique_core"), "list")
+  expect_type(attr(p_cm, "prevalence"), "list")
+
+  # 6. plot_concordant_core defaults to percent_samples = 0.95, taxa_rank = "OTU", samplecolumn = NULL
+  expect_message(
+    p_cc <- suppressWarnings(plot_concordant_core(sim, group_var = "Group")),
+    'attr\\(plot, "concordant_core"\\)'
+  )
+  expect_s3_class(p_cc, "ggplot")
+  expect_type(attr(p_cc, "concordant_core"), "character")
+  expect_type(attr(p_cc, "prevalence"), "list")
+})
+
+test_that("prev_check computes faceted core counts from 0.25 to 1 by step_size", {
+  sim <- make_sim()
+
+  expect_message(
+    p_pc <- suppressWarnings(prev_check(sim, group_var = "Group", step_size = 0.25)),
+    'attr\\(plot, "prev_check"\\)'
+  )
+  expect_s3_class(p_pc, "ggplot")
+  expect_identical(p_pc$labels$title, "Core Microbiome by Prevalence Thresholds")
+
+  tbl <- attr(p_pc, "prev_check")
+  expect_s3_class(tbl, "data.frame")
+  expect_equal(sort(unique(tbl$Threshold)), c(0.25, 0.50, 0.75, 1.00))
+  # Core count within each group must be monotonically non-increasing as threshold rises
+  for (g in unique(tbl$Group)) {
+    sub <- tbl[tbl$Group == g, ]
+    sub <- sub[order(sub$Threshold), ]
+    expect_true(all(diff(sub$Core_Taxa) <= 0))
+  }
+
+  expect_error(prev_check(sim, group_var = "Group", step_size = 0), "step_size")
+  expect_error(prev_check(sim, group_var = "Group", step_size = 1.5), "step_size")
+})

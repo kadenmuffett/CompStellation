@@ -7,17 +7,18 @@
 plot_core_matrix(
   physeq,
   group_var,
-  percent_samples,
+  percent_samples = 0.95,
   abundance_threshold = 0,
   abundance_type = c("counts", "relative"),
-  taxa_rank,
-  samplecolumn,
+  taxa_rank = "OTU",
+  samplecolumn = NULL,
   log_scale = FALSE,
   group_subset = NULL,
   verbose = TRUE,
   axis_label_pos = c("side", "middle", "none"),
   font = NULL,
   label_color = "black",
+  max_taxa = 4,
   ...
 )
 }
@@ -27,25 +28,27 @@ plot_core_matrix(
 \item{group_var}{A character string. The name of the column to use for grouping.}
 
 \item{percent_samples}{The proportion of samples within a group that a taxon
-must be present in to be considered "core". Given either as a proportion in
-(0, 1] or as a percentage in (1, 100]; the interpretation chosen is
-reported, because a bare \code{1} means 100\%, not 1\%.}
+must be present in to be considered "core" (default \code{0.95}). Given either
+as a proportion in (0, 1] or as a percentage in (1, 100]; the
+interpretation chosen is reported, because a bare \code{1} means 100\%, not 1\%.}
 
 \item{abundance_threshold}{A numeric value (default 0). The abundance a taxon
 must \strong{exceed} in a sample for that sample to count as present.}
 
 \item{abundance_type}{Either "counts" (default) or "relative"; see \code{\link[=coreselect]{coreselect()}}.}
 
-\item{taxa_rank}{A character string. The taxonomic rank to use (e.g., "Genus").}
+\item{taxa_rank}{A character string specifying the taxonomic rank to use
+(e.g., \code{"Family"}, \code{"Genus"}), or \code{"OTU"} (default) for unaggregated taxa.}
 
-\item{samplecolumn}{A character string. The name of the sample ID column.}
+\item{samplecolumn}{Optional character string naming the sample ID column. If
+\code{NULL} (default), uses \code{"Sample"} from \code{phyloseq::psmelt()}.}
 
 \item{log_scale}{A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.}
 
 \item{group_subset}{A character vector specifying which groups to include (if NULL, all are used).}
 
-\item{verbose}{Logical. If TRUE (default), report the resolved thresholds and
-the size of each group's core.}
+\item{verbose}{Logical. If TRUE (default), report the resolved thresholds,
+the size of each group's core, and attribute access instructions.}
 
 \item{axis_label_pos}{Character. Position of concentric-circle tick labels:
 \code{"side"} (default; along the left margin), \code{"middle"} (at the 12 o'clock
@@ -58,12 +61,15 @@ ggplot2 theme default without overriding font family.}
 \item{label_color}{Character string specifying the color for all plot text
 and labels (default \code{"black"}).}
 
+\item{max_taxa}{Integer between 1 and 8 specifying the maximum number of
+unique core taxa per group to display as spokes (default \code{4}).}
+
 \item{...}{Additional arguments, e.g. "colors_all" passed to \code{plot_taxa_star}.}
 }
 \value{
 A patchwork object containing the matrix of plots, with the unique
-core memberships attached as the "unique_core" attribute and the per-group
-prevalence of those taxa as the "prevalence" attribute.
+core memberships attached as \code{attr(plot, "unique_core")} and the per-group
+prevalences as \code{attr(plot, "prevalence")}.
 }
 \description{
 This function identifies the "unique core" taxa for each group (present in that group
@@ -87,7 +93,6 @@ plot_core_matrix(
   group_var = "Body_cav",
   percent_samples = 0.85,
   taxa_rank = "Family",
-  samplecolumn = "Sample_NAME",
   group_subset = c("Sub", "WTR"),
   log_scale = TRUE
 )

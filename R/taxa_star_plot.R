@@ -3,30 +3,34 @@
 #' This function generates a star (radar) plot showing the relative abundance
 #' of three specified taxa plus an "Other" category, faceted by a sample variable.
 #'
-#' @param physeq A phyloseq object containing your microbiome data.
-#' @param sample_var A character string. The name of the column in your sample data
-#'   to use for faceting (e.g., "location", "treatment").
+#' @param physeq A phyloseq object or wide data frame containing your microbiome data.
+#' @param group_var A character string. The name of the column in your sample data
+#'   to use for grouping/faceting (e.g., "location", "treatment").
 #' @param taxa_rank A character string. The taxonomic rank you are providing taxa
-#'   names for (e.g., "Phylum", "Genus").
-#' @param taxa_names A character vector containing the names of the three specific
-#'   taxa you want to plot. If NULL (default), the top 4 most abundant taxa are selected.
+#'   names for (e.g., "Phylum", "Genus"), or "OTU" (default) for unaggregated taxa.
+#' @param taxa_names A character vector containing the names of the specific
+#'   taxa you want to plot (fewer than 8). If NULL (default), the top 4 most abundant taxa are selected.
 #'
 #' @param error_bar A character string, one of "IQR" (default), "SE", or "none".
 #'   "IQR" draws the interquartile range of the samples in the group, around the
 #'   group **median**; "SE" draws one standard error of the group **mean**,
 #'   around the mean. The two describe different things — spread of the samples
 #'   versus precision of the centre — and the plot title records which was used.
-#' @param samplecolumn This is the ID column for your samples.
+#' @param samplecolumn Optional character string naming the sample ID column. If
+#'   `NULL` (default), uses `"Sample"` from `phyloseq::psmelt()` (or row names
+#'   when `physeq` is a data frame).
 #' @param view_type A character string, either "separate" (default) or "together".
 #'   Determines whether groups are plotted on the same plot or faceted.
 #' @param fill_alpha A numeric value between 0 and 1 (default 0.2).
 #'   Controls the transparency of the polygon fill under the star plot.
 #' @param log_scale A logical value. If TRUE, applies a pseudo-log transformation to the y-axis.
-#' @param plot_order A character vector for custom ordering of the sample variable,
+#' @param plot_order A character vector for custom ordering of the grouping variable,
 #'   "hclust" for complete-linkage clustering on Bray-Curtis distances between the
 #'   group mean abundances, or NULL (default) for alphabetical.
 #' @param base_colors Optional. A character vector of base colors to use for hclust coloring.
 #' @param colors_all Optional. A character vector of colors, or "hclust" for automatic clustering colors.
+#' @param verbose Logical. If TRUE (default), report aggregation, taxon selection,
+#'   and attribute access instructions.
 #' @param show_caption Logical. If FALSE (default), omits the explanatory caption below the plot.
 #' @param axis_label_pos Character. Position of concentric-circle tick labels:
 #'   `"side"` (default; along the left margin), `"middle"` (at the 12 o'clock
@@ -37,7 +41,8 @@
 #' @param label_color Character string specifying the color for all plot text
 #'   and labels (default `"black"`).
 #'
-#' @return A ggplot object representing the star plot.
+#' @return A ggplot object representing the star plot, with the plotted taxon
+#'   names attached as `attr(plot, "taxa_names")`.
 #'
 #' @section Interpreting the plot:
 #' The abundances are compositional: relative abundances within a sample sum to
@@ -62,30 +67,25 @@
 #' data("cassiopea_ps")
 #' plot_taxa_star(
 #'   physeq = cassiopea_ps,
-#'   sample_var = "Body_cav",
+#'   group_var = "Body_cav",
 #'   taxa_rank = "Phylum",
-#'   samplecolumn = "Sample_NAME",
 #'   view_type = "separate",
 #'   error_bar = "SE"
 #' )
-plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
+plot_taxa_star <- function(physeq, group_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn = NULL, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL, verbose = TRUE, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
   # --- 1. Input Validation and Conversion ---
 
   # Check if input is a data frame and convert to phyloseq if necessary
   if (inherits(physeq, "data.frame")) {
-    message("Input is a data frame.I will assume all nonnumeric columns are metadata and
-            all numeric columns except sample_var are data.To avoid this,
-            you can always build a ps object yourself. Converting to phyloseq object...")
-
-    # Identify numeric columns as taxa, others as sample data
-    # We assume taxa columns are numeric and sample data are not (or are specific known columns)
-    # We will assume that strictly numeric columns that are NOT `sample_var` or `samplecolumn` are taxa.
+    if (verbose) {
+      message("Input is a data frame. Assuming non-numeric columns (plus group_var/samplecolumn) are metadata and remaining numeric columns are taxa. Converting to phyloseq object...")
+    }
 
     # Identify potential taxa columns (numeric)
     numeric_cols <- sapply(physeq, is.numeric)
 
     # Exclude known sample variables from taxa candidates
-    known_sample_vars <- c(sample_var, samplecolumn)
+    known_sample_vars <- c(group_var, samplecolumn)
     taxa_candidates <- names(physeq)[numeric_cols]
     taxa_cols <- setdiff(taxa_candidates, known_sample_vars)
 
@@ -97,6 +97,19 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     taxa_mat <- as.matrix(physeq[, taxa_cols, drop = FALSE])
     sample_dat <- physeq[, !names(physeq) %in% taxa_cols, drop = FALSE]
 
+    if (!is.null(samplecolumn)) {
+      if (!samplecolumn %in% names(sample_dat)) {
+        stop("Error: '", samplecolumn, "' is not a column in the data frame.")
+      }
+      rn <- as.character(sample_dat[[samplecolumn]])
+      rownames(taxa_mat) <- rn
+      rownames(sample_dat) <- rn
+    } else if (is.null(rownames(taxa_mat)) || all(rownames(taxa_mat) == as.character(seq_len(nrow(taxa_mat))))) {
+      rn <- paste0("Sample_", seq_len(nrow(taxa_mat)))
+      rownames(taxa_mat) <- rn
+      rownames(sample_dat) <- rn
+    }
+
     # Create Phyloseq components
     # OTU Table: Taxa are columns in input DF -> taxa_are_rows = FALSE
     otu <- phyloseq::otu_table(taxa_mat, taxa_are_rows = FALSE)
@@ -105,9 +118,6 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     sdata <- phyloseq::sample_data(sample_dat)
 
     # Taxonomy Table
-    # We need a dummy taxonomy table that maps the column names (Taxa) to the requested rank.
-    # `taxa_rank` argument will be used as the rank name in the taxonomy table.
-    # Create a matrix with 1 column, named `taxa_rank`
     tax_mat <- matrix(colnames(taxa_mat), ncol = 1)
     colnames(tax_mat) <- taxa_rank
     rownames(tax_mat) <- colnames(taxa_mat)
@@ -134,16 +144,14 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     physeq <- phyloseq::prune_samples(valid_samples, physeq)
   }
 
-  if (!sample_var %in% phyloseq::sample_variables(physeq)) {
-    stop("Error: '", sample_var, "' is not a valid sample variable in the phyloseq object/data frame.")
+  if (!group_var %in% phyloseq::sample_variables(physeq)) {
+    stop("Error: '", group_var, "' is not a valid sample variable in the phyloseq object/data frame.")
   }
 
   if (!is.null(taxa_names) && length(taxa_names) > 8) {
     stop("Error: 'taxa_names' must be fewer than 8 taxa (think about visual relevance!).")
   }
   # Check if rank exists.
-  # Note: For converted DFs, we created the rank column, so this should pass.
-  # For existing phyloseq objects, this remains a valid check.
   if (!taxa_rank %in% phyloseq::rank_names(physeq) && taxa_rank != "OTU") {
     stop("Error: '", taxa_rank, "' is not a valid taxonomic rank in the phyloseq object.")
   }
@@ -162,11 +170,17 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     physeq_rel <- agg_taxa(physeq_rel, rank = taxa_rank)
   } else {
     physeq_rel <- physeq_rel
-    message("Taxa not aggregated. Using OTUs.")
+    if (verbose) message("Taxa not aggregated. Using OTUs.")
   }
 
   # Melt the data into a long format for ggplot2
   df <- phyloseq::psmelt(physeq_rel)
+
+  if (is.null(samplecolumn)) {
+    samplecolumn <- "Sample"
+  } else if (!samplecolumn %in% names(df)) {
+    stop("Error: '", samplecolumn, "' is not a valid sample ID column in the phyloseq object/data frame.")
+  }
 
   # --- 2b. Default Taxa Selection ---
   if (is.null(taxa_names)) {
@@ -180,23 +194,25 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
       as.character()
 
     taxa_names <- top_taxa
-    message("No taxa_names provided. Defaulting to top 4 most abundant: ", paste(taxa_names, collapse = ", "))
+    if (verbose) {
+      message("No taxa_names provided. Defaulting to top 4 most abundant: ", paste(taxa_names, collapse = ", "))
+    }
   }
 
   # --- 3. Taxa Grouping ---
 
-  # Group the taxa: the three specified taxa and "Other"
+  # Group the taxa: the specified taxa and "Other"
   df_grouped <- df %>%
     # Use the taxa_rank column to mutate the new variable
     mutate(Taxa_Group = if_else(get(taxa_rank) %in% taxa_names, as.character(get(taxa_rank)), "Other")) %>%
-    # Group by the specified sample variable and the new Taxa_Group
-    group_by(!!rlang::sym(sample_var), !!rlang::sym(samplecolumn), Taxa_Group) %>%
+    # Group by the specified group variable and sample ID and the new Taxa_Group
+    group_by(!!rlang::sym(group_var), !!rlang::sym(samplecolumn), Taxa_Group) %>%
     # Calculate the mean abundance for each group
     summarise(sum_Abundance = sum(Abundance), .groups = "drop")
 
   df_grouped_2 <- df_grouped %>%
-    # Group by the specified sample variable and the new Taxa_Group
-    group_by(!!rlang::sym(sample_var), Taxa_Group) %>%
+    # Group by the specified group variable and the new Taxa_Group
+    group_by(!!rlang::sym(group_var), Taxa_Group) %>%
     # Calculate the centre and spread for each group
     summarise(
       N_samples = dplyr::n(),
@@ -224,7 +240,7 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   # Groups of one have no spread to show; say so rather than silently dropping
   # the interval.
   if (error_bar != "none") {
-    thin <- unique(as.character(df_grouped_2[[sample_var]][df_grouped_2$N_samples < 2]))
+    thin <- unique(as.character(df_grouped_2[[group_var]][df_grouped_2$N_samples < 2]))
     if (length(thin) > 0) {
       warning(
         "No interval can be drawn for group(s) with a single sample: ",
@@ -250,32 +266,34 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   # factor levels alone re-labels the spokes without re-tracing the shape, so the
   # polygon crosses over itself. The rows must be sorted to match the levels.
   df_grouped_2 <- df_grouped_2 %>%
-    dplyr::arrange(!!rlang::sym(sample_var), Taxa_Group)
+    dplyr::arrange(!!rlang::sym(group_var), Taxa_Group)
 
   # --- 3b. Plot Ordering ---
   # Bray-Curtis is appropriate here: the values being clustered are non-negative
   # relative abundances. (It would not be appropriate on ordination scores.)
   cluster_groups <- function() {
     wide_df <- df_grouped_2 %>%
-      dplyr::select(!!rlang::sym(sample_var), Taxa_Group, Center_Abundance) %>%
+      dplyr::select(!!rlang::sym(group_var), Taxa_Group, Center_Abundance) %>%
       tidyr::pivot_wider(names_from = Taxa_Group, values_from = Center_Abundance, values_fill = list(Center_Abundance = 0))
 
-    dist_m <- vegan::vegdist(wide_df %>% dplyr::select(-!!rlang::sym(sample_var)), method = "bray")
+    dist_m <- vegan::vegdist(wide_df %>% dplyr::select(-!!rlang::sym(group_var)), method = "bray")
     hc_res <- stats::hclust(dist_m, method = "complete")
-    hc_res$labels <- as.character(wide_df[[sample_var]])
+    hc_res$labels <- as.character(wide_df[[group_var]])
     hc_res
   }
 
   if (!is.null(plot_order)) {
     if (length(plot_order) == 1 && plot_order == "hclust") {
-      message("Ordering groups by complete-linkage clustering on Bray-Curtis distances between group abundances...")
+      if (verbose) {
+        message("Ordering groups by complete-linkage clustering on Bray-Curtis distances between group abundances...")
+      }
       hc <- cluster_groups()
       ordered_groups <- hc$labels[hc$order]
 
-      df_grouped_2[[sample_var]] <- factor(df_grouped_2[[sample_var]], levels = ordered_groups)
+      df_grouped_2[[group_var]] <- factor(df_grouped_2[[group_var]], levels = ordered_groups)
     } else {
       # Custom order provided by user
-      df_grouped_2[[sample_var]] <- factor(df_grouped_2[[sample_var]], levels = plot_order)
+      df_grouped_2[[group_var]] <- factor(df_grouped_2[[group_var]], levels = plot_order)
     }
   }
 
@@ -283,10 +301,10 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
   # Handle default colors if missing
   if (missing(colors_all) || is.null(colors_all) || (length(colors_all) == 1 && colors_all == "hclust")) {
-    if (is.factor(df_grouped_2[[sample_var]])) {
-      groups <- levels(df_grouped_2[[sample_var]])
+    if (is.factor(df_grouped_2[[group_var]])) {
+      groups <- levels(df_grouped_2[[group_var]])
     } else {
-      groups <- as.character(unique(df_grouped_2[[sample_var]]))
+      groups <- as.character(unique(df_grouped_2[[group_var]]))
     }
 
     if (!missing(colors_all) && !is.null(colors_all) && colors_all == "hclust") {
@@ -324,8 +342,8 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
 
   # Create the star plot
   star_plot <- ggplot(df_grouped_2, aes(
-    x = Taxa_Group, y = Center_Abundance, group = !!rlang::sym(sample_var),
-    fill = !!rlang::sym(sample_var), color = !!rlang::sym(sample_var)
+    x = Taxa_Group, y = Center_Abundance, group = !!rlang::sym(group_var),
+    fill = !!rlang::sym(group_var), color = !!rlang::sym(group_var)
   )) +
     geom_polygon(aes(), linewidth = 0.8, show.legend = FALSE, alpha = fill_alpha) +
     scale_fill_manual(values = colors_all) +
@@ -350,8 +368,8 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
       title = paste0(center_label, " Relative Abundance of Key Taxa", title_suffix),
       x = "",
       y = paste0(center_label, " Relative Abundance"),
-      color = sample_var,
-      fill = sample_var,
+      color = group_var,
+      fill = group_var,
       caption = caption_text
     ) +
     coord_radar(clip = "off")
@@ -361,7 +379,7 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
   }
 
   if (view_type == "separate") {
-    star_plot <- star_plot + facet_wrap(as.formula(paste("~", sample_var)))
+    star_plot <- star_plot + facet_wrap(as.formula(paste("~", group_var)))
   }
 
   # Add Error Bars conditionally
@@ -393,6 +411,11 @@ plot_taxa_star <- function(physeq, sample_var, taxa_rank = "OTU", taxa_names = N
     font = font,
     label_color = label_color
   )
+
+  attr(star_plot, "taxa_names") <- taxa_names
+  if (verbose) {
+    message("Attached attributes: access plotted taxa via attr(plot, \"taxa_names\").")
+  }
 
   return(star_plot)
 }

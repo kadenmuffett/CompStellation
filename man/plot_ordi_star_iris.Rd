@@ -6,8 +6,8 @@
 \usage{
 plot_ordi_star_iris(
   physeq,
-  sample_var,
-  taxa_rank = "Phylum",
+  group_var,
+  taxa_rank = "OTU",
   n_taxa = 5,
   colors_star = NULL,
   colors_taxa = NULL,
@@ -29,10 +29,11 @@ plot_ordi_star_iris(
 \arguments{
 \item{physeq}{A phyloseq object containing your microbiome data.}
 
-\item{sample_var}{A character string. The name of the column in your sample data
+\item{group_var}{A character string. The name of the column in your sample data
 to use for grouping samples (e.g., "location", "treatment").}
 
-\item{taxa_rank}{A character string. The taxonomic rank for the iris plot (default "Phylum").}
+\item{taxa_rank}{A character string. The taxonomic rank for the iris plot, or
+\code{"OTU"} (default) for unaggregated taxa.}
 
 \item{n_taxa}{Integer. The number of top taxa to explicitly show in the iris plot (default 5).
 Remaining taxa are grouped into "Other".}
@@ -80,7 +81,9 @@ ggplot2 theme default without overriding font family.}
 and labels (default \code{"black"}).}
 }
 \value{
-A ggplot object representing the star-and-iris visualization.
+A ggplot object representing the star-and-iris visualization, with
+\code{attr(plot, "ordination")}, \code{attr(plot, "scores")}, and
+\code{attr(plot, "taxa_names")} attached.
 }
 \description{
 This experimental (beta) function combines an ordination radar plot (the "star")
@@ -101,7 +104,7 @@ the spokes and is not an interpretable quantity.
 data("cassiopea_ps")
 plot_ordi_star_iris(
   physeq = cassiopea_ps,
-  sample_var = "Body_cav",
+  group_var = "Body_cav",
   taxa_rank = "Phylum",
   distance = "bray"
 )
