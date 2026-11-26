@@ -449,3 +449,28 @@ test_that("prev_check computes faceted core counts from 0.25 to 1 by step_size",
   expect_error(prev_check(sim, group_var = "Group", step_size = 0), "step_size")
   expect_error(prev_check(sim, group_var = "Group", step_size = 1.5), "step_size")
 })
+
+test_that("other = FALSE omits 'Other' spoke in plot_taxa_star while preserving whole-community abundances", {
+  sim <- make_sim()
+
+  p_on <- plot_taxa_star(sim, group_var = "Group", verbose = FALSE)
+  p_off <- plot_taxa_star(sim, group_var = "Group", other = FALSE, verbose = FALSE)
+
+  expect_true("Other" %in% levels(p_on$data$Taxa_Group))
+  expect_false("Other" %in% levels(p_off$data$Taxa_Group))
+  expect_equal(nrow(p_off$data), nrow(p_on$data[p_on$data$Taxa_Group != "Other", ]))
+
+  # Whole-community relative abundances of focal taxa are identical with other = TRUE vs FALSE
+  on_focal <- p_on$data[p_on$data$Taxa_Group != "Other", c("Group", "Center_Abundance")]
+  expect_equal(p_off$data$Center_Abundance, on_focal$Center_Abundance)
+
+  # Toggling 'other' is rejected on plot_core_matrix and plot_concordant_core
+  expect_error(
+    plot_core_matrix(sim, group_var = "Group", other = FALSE, verbose = FALSE),
+    "only be toggled in plot_taxa_star"
+  )
+  expect_error(
+    plot_concordant_core(sim, group_var = "Group", other = FALSE, verbose = FALSE),
+    "only be toggled in plot_taxa_star"
+  )
+})

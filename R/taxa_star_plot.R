@@ -40,6 +40,9 @@
 #'   ggplot2 theme default without overriding font family.
 #' @param label_color Character string specifying the color for all plot text
 #'   and labels (default `"black"`).
+#' @param other Logical. If `TRUE` (default), pools all non-focal taxa into an
+#'   `"Other"` spoke; if `FALSE`, omits the `"Other"` spoke and plots only the
+#'   selected focal taxa at their whole-community relative abundances.
 #'
 #' @return A ggplot object representing the star plot, with the plotted taxon
 #'   names attached as `attr(plot, "taxa_names")`.
@@ -72,8 +75,12 @@
 #'   view_type = "separate",
 #'   error_bar = "SE"
 #' )
-plot_taxa_star <- function(physeq, group_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn = NULL, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL, verbose = TRUE, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black") {
+plot_taxa_star <- function(physeq, group_var, taxa_rank = "OTU", taxa_names = NULL, colors_all, samplecolumn = NULL, view_type = "separate", error_bar = "IQR", fill_alpha = 0.2, log_scale = FALSE, plot_order = NULL, base_colors = NULL, verbose = TRUE, show_caption = FALSE, axis_label_pos = c("side", "middle", "none"), font = NULL, label_color = "black", other = TRUE) {
   # --- 1. Input Validation and Conversion ---
+
+  if (!is.logical(other) || length(other) != 1L || is.na(other)) {
+    stop("Error: 'other' must be a single non-missing logical value (TRUE or FALSE).", call. = FALSE)
+  }
 
   # Check if input is a data frame and convert to phyloseq if necessary
   if (inherits(physeq, "data.frame")) {
@@ -210,6 +217,18 @@ plot_taxa_star <- function(physeq, group_var, taxa_rank = "OTU", taxa_names = NU
     # Calculate the mean abundance for each group
     summarise(sum_Abundance = sum(Abundance), .groups = "drop")
 
+  if (!other) {
+    df_grouped <- dplyr::filter(df_grouped, Taxa_Group != "Other")
+    n_plotted <- length(unique(df_grouped$Taxa_Group))
+    if (n_plotted < 3) {
+      warning(
+        "Fewer than 3 focal taxa (", n_plotted,
+        ") are present when other = FALSE; star polygon will collapse to a line or point.",
+        call. = FALSE
+      )
+    }
+  }
+
   df_grouped_2 <- df_grouped %>%
     # Group by the specified group variable and the new Taxa_Group
     group_by(!!rlang::sym(group_var), Taxa_Group) %>%
@@ -277,6 +296,7 @@ plot_taxa_star <- function(physeq, group_var, taxa_rank = "OTU", taxa_names = NU
       tidyr::pivot_wider(names_from = Taxa_Group, values_from = Center_Abundance, values_fill = list(Center_Abundance = 0))
 
     dist_m <- vegan::vegdist(wide_df %>% dplyr::select(-!!rlang::sym(group_var)), method = "bray")
+    dist_m[is.na(dist_m)] <- 0
     hc_res <- stats::hclust(dist_m, method = "complete")
     hc_res$labels <- as.character(wide_df[[group_var]])
     hc_res

@@ -21,7 +21,8 @@ plot_taxa_star(
   show_caption = FALSE,
   axis_label_pos = c("side", "middle", "none"),
   font = NULL,
-  label_color = "black"
+  label_color = "black",
+  other = TRUE
 )
 }
 \arguments{
@@ -77,6 +78,10 @@ ggplot2 theme default without overriding font family.}
 
 \item{label_color}{Character string specifying the color for all plot text
 and labels (default \code{"black"}).}
+
+\item{other}{Logical. If \code{TRUE} (default), pools all non-focal taxa into an
+\code{"Other"} spoke; if \code{FALSE}, omits the \code{"Other"} spoke and plots only the
+selected focal taxa at their whole-community relative abundances.}
 }
 \value{
 A ggplot object representing the star plot, with the plotted taxon

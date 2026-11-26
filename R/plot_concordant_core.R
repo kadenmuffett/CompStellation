@@ -69,6 +69,9 @@ plot_concordant_core <- function(physeq, group_var, percent_samples = 0.95, abun
     }
     max_taxa <- as.integer(max_taxa)
 
+    if ("other" %in% names(list(...))) {
+        stop("'other' can only be toggled in plot_taxa_star().", call. = FALSE)
+    }
     abundance_type <- match.arg(abundance_type)
     axis_label_pos <- match.arg(axis_label_pos)
 
@@ -230,6 +233,7 @@ plot_concordant_core <- function(physeq, group_var, percent_samples = 0.95, abun
         axis_label_pos = axis_label_pos,
         font = font,
         label_color = label_color,
+        other = TRUE,
         ...
     )
 
